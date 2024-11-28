@@ -1,28 +1,7 @@
-import pennylane as qml
 from qiskit import Aer, QuantumCircuit, QuantumRegister, ClassicalRegister, execute
 import qiskit.tools.qcvv.tomography as tomo
 from qiskit.qasm import Qasm
 from qiskit.tools.visualization import plot_state
-
-dev = qml.device('default.qubit', wires=[i for i in range(4)])
-
-# A controlled teleportation circuit
-with qml.tape.QuantumTape() as tape:
-    qml.Hadamard(wires=0)
-    qml.CNOT(wires=[0, 1])
-    qml.CNOT(wires=[1, 2])
-    qml.X(wires=3)
-    qml.CNOT(wires=[3, 2])
-    qml.Hadamard(wires=3)
-    qml.Hadamard(wires=1)
-    qml.Z(wires=0)
-    qml.X(wires=3)
-
-qasm_str = tape.to_openqasm()
-
-f = open("./intermediate.qasm", "w")
-f.write(qasm_str)
-f.close()
 
 program = Qasm(filename="./intermediate.qasm").parse()
 
