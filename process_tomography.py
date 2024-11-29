@@ -1,33 +1,19 @@
-from qiskit import Aer, QuantumCircuit, QuantumRegister, ClassicalRegister, execute
-import qiskit.tools.qcvv.tomography as tomo
-from qiskit.qasm import Qasm
-from qiskit.tools.visualization import plot_state
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from qiskit_experiments.library.tomography import ProcessTomography
+from qiskit_experiments.visualization import CurvePlotter, MplDrawer
+from qiskit.providers.basic_provider import BasicProvider
 
 if __name__ == '__main__':
 
-    program = Qasm(filename="./intermediate.qasm").parse()
-
-    qr = QuantumRegister(4)
-    cr = ClassicalRegister(4)
+    qr = QuantumRegister(1)
+    cr = ClassicalRegister(1)
     circuit = QuantumCircuit(qr, cr)
+    circuit.h(qr[0])
+    circuit.measure(qr[0], cr[0])
 
-    for node in program.children:
-        if node.__class__.__name__ == 'CustomUnitary':
-            if node.name != 'cx':
-                getattr(circuit, node.name)(qr[node.bitlist.children[0].children[1].value])
-            else:
-                getattr(circuit, node.name)(
-                    qr[node.bitlist.children[0].children[1].value],
-                    qr[node.bitlist.children[1].children[1].value]
-                )
+    backend = BasicProvider().get_backend('basic_simulator')
+    experiment_data = ProcessTomography(circuit).run(backend=backend).block_for_results()
 
-    tomography_set = tomo.process_tomography_set([0, 1, 2, 3])
-    tomography_circuits = tomo.create_tomography_circuits(circuit, qr, cr, tomography_set)
-
-    backend = Aer.get_backend('qasm_simulator')
-    tomography_job = execute(tomography_circuits, backend=backend, shots=100)
-    tomography_result = tomography_job.result()
-    process_data = tomo.tomography_data(tomography_result, circuit.name, tomography_set)
-
-    choi_fit = tomo.fit_tomography_data(process_data, options={'trace': 4})
-    plot_state(choi_fit)
+    plotter = CurvePlotter(MplDrawer())
+    plotter.set_series_data('tomography', state=experiment_data.analysis_results('state'))
+    plotter.figure()
