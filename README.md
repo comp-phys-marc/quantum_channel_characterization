@@ -11,4 +11,4 @@ To get qiskit 0.6.0 (with tomography) working on M3 Mac:
 
 ### Nov 28th 
 
-Updated to qiskit 1.3.0 and installed qiskit-experiments
+- Updated to qiskit 1.3.0 and installed qiskit-experiments
