@@ -1,33 +1,36 @@
-from qiskit import Aer, QuantumCircuit, QuantumRegister, ClassicalRegister, execute
-import qiskit.tools.qcvv.tomography as tomo
-from qiskit.qasm import Qasm
-from qiskit.tools.visualization import plot_state
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from qiskit_experiments.library.tomography import ProcessTomography
+from qiskit.providers.basic_provider import BasicProvider
+import matplotlib.pyplot as plt
+import numpy as np
 
 if __name__ == '__main__':
 
-    program = Qasm(filename="./intermediate.qasm").parse()
-
-    qr = QuantumRegister(4)
-    cr = ClassicalRegister(4)
+    qr = QuantumRegister(3)
+    cr = ClassicalRegister(3)
     circuit = QuantumCircuit(qr, cr)
+    circuit.x(qr[0])
+    circuit.x(qr[1])
+    circuit.x(qr[2])
+    # circuit.x(qr[3])
+    # circuit.x(qr[4])
+    circuit.cx(qr[0], qr[1])
+    circuit.cx(qr[1], qr[2])
+    # circuit.cx(qr[2], qr[3])
+    # circuit.cx(qr[3], qr[4])
+    # circuit.cx(qr[4], qr[0])
+    circuit.measure(qr[0], cr[0])
+    circuit.measure(qr[1], cr[1])
+    circuit.measure(qr[2], cr[2])
+    # circuit.measure(qr[3], cr[3])
+    # circuit.measure(qr[4], cr[4])
 
-    for node in program.children:
-        if node.__class__.__name__ == 'CustomUnitary':
-            if node.name != 'cx':
-                getattr(circuit, node.name)(qr[node.bitlist.children[0].children[1].value])
-            else:
-                getattr(circuit, node.name)(
-                    qr[node.bitlist.children[0].children[1].value],
-                    qr[node.bitlist.children[1].children[1].value]
-                )
+    backend = BasicProvider().get_backend('basic_simulator')
+    experiment_data = ProcessTomography(circuit).run(backend=backend).block_for_results()
 
-    tomography_set = tomo.process_tomography_set([0, 1, 2, 3])
-    tomography_circuits = tomo.create_tomography_circuits(circuit, qr, cr, tomography_set)
+    choi_matrix = experiment_data.analysis_results('state').value
 
-    backend = Aer.get_backend('qasm_simulator')
-    tomography_job = execute(tomography_circuits, backend=backend, shots=100)
-    tomography_result = tomography_job.result()
-    process_data = tomo.tomography_data(tomography_result, circuit.name, tomography_set)
-
-    choi_fit = tomo.fit_tomography_data(process_data, options={'trace': 4})
-    plot_state(choi_fit)
+    plt.matshow(np.real(choi_matrix))
+    plt.show()
+    plt.matshow(np.imag(choi_matrix))
+    plt.show()
