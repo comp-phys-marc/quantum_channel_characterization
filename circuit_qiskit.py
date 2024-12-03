@@ -1,13 +1,7 @@
 # Qiskit imports
 from fileinput import filename
-from qiskit_aer.noise import (
-    NoiseModel,
-    QuantumError,
-    ReadoutError,
-    depolarizing_error,
-    pauli_error,
-    thermal_relaxation_error,
-)
+from qiskit_aer.noise import NoiseModel, pauli_error
+
 import numpy as np
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
@@ -63,7 +57,7 @@ def get_noise_model(cnot_error_probs, reset_error_probs, measurement_error_probs
 
 def get_random_probs(num_probs):
     rands = np.random.rand(num_probs)
-    return rands/np.linalg.norm(rands)
+    return rands/np.sum(rands)
 
 
 circuit = get_circuit(6,5)

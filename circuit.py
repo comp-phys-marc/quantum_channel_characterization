@@ -1,6 +1,34 @@
 import pennylane as qml
 import matplotlib.pyplot as plt
 import numpy as np
+from pennylane import I, PauliX, PauliY, PauliZ
+from pennylane.tape import QuantumScript, QuantumScriptBatch
+from pennylane.typing import PostprocessingFn
+I, X, Y, Z = I(0).matrix(), PauliX(0).matrix(), PauliY(0).matrix(), PauliZ(0).matrix()
+one_pauli_matrices = [I, X, Y, Z]
+
+two_pauli_matrices = []
+for i in range(4):
+    for j in range(4):
+        two_pauli_matrices.append(np.kron(one_pauli_matrices[i], one_pauli_matrices[j]))
+
+def get_random_probs(num_probs):
+    rands = np.random.rand(num_probs)
+    return rands/np.sum(rands)
+
+
+class SPAM(qml.QubitChannel):
+    def __init__(self, probs, wire):
+        kraus_matrices = [np.sqrt(p) * pauli for p, pauli in zip(probs, one_pauli_matrices)]
+        super(SPAM, self).__init__(kraus_matrices, wires=wire)
+        self.name = "QubitChannel"
+
+class PauliErrors(qml.QubitChannel):
+    def __init__(self, probs, wires):
+        kraus_matrices = [np.sqrt(p) * pauli for p, pauli in zip(probs, two_pauli_matrices)]
+        super(PauliErrors, self).__init__(kraus_matrices, wires=wires)
+        self.name = "QubitChannel"
+
 
 def get_qnode(n_wires):
     @qml.qnode(qml.device("default.mixed", n_wires))
@@ -21,7 +49,7 @@ def apply_CNOT_layer(num_wires, layer_mod_2):
         final_wire = num_wires - layer_mod_2
         wrap_around = bool(layer_mod_2)
     else:
-        final_wire = num_wires + layer_mod_2
+        final_wire = num_wires + layer_mod_2 - 1
         wrap_around = not bool(layer_mod_2)
 
     for wire in range(layer_mod_2, final_wire, 2):
@@ -33,17 +61,15 @@ def apply_CNOT_layer(num_wires, layer_mod_2):
 
 
 def apply_noisy_CNOT(wires):
-    qml.QubitChannel([np.eye(4)], wires=wires, id=r"\Lambda")
+    PauliErrors(get_random_probs(16), wires=wires)
     qml.CNOT(wires)
 
 
 def apply_spam_errors(num_wires):
     for wire in range(num_wires):
-        qml.QubitChannel([np.eye(2)], wire, id="SPAM") # TODO change
+        SPAM(get_random_probs(4), wire)
 
 def apply_X_gates(num_wires):
     for wire in range(num_wires):
         qml.X(wire)
 
-fig, ax = qml.draw_mpl(circ)(10)
-fig.savefig("circ.jpeg")
