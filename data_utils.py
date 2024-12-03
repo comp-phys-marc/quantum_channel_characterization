@@ -59,10 +59,12 @@ class ComplexDecoder(json.JSONDecoder):
 if __name__ == '__main__':
     json_dict = dict()
     json_dict[0] = {
-        "complex_matrix": [[complex(0.1, 0.2) for i in range(5)] for j in range(5)]
+        "complex_matrix": [[complex(0.1, 0.2) for i in range(5)] for j in range(5)],
+        "real_matrix": [[0.1 for i in range(5)] for j in range(5)]
     }
 
     dumped = json.dumps(json_dict, cls=NumpyEncoder)
     loaded = json.loads(dumped, cls=ComplexDecoder)
 
     assert np.array_equal(loaded['0']["complex_matrix"], json_dict[0]["complex_matrix"])
+    assert np.array_equal(loaded['0']["real_matrix"], json_dict[0]["real_matrix"])
