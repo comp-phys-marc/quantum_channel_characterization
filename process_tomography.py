@@ -46,7 +46,7 @@ if __name__ == '__main__':
         print(f"Qubits: {m}")
         for n in range(2, 5):
             print(f"Layers: {n}")
-            f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "a")
+            f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
 
             json_dict = generate_dataset(m, n, 100)
 
