@@ -60,7 +60,7 @@ def get_random_probs(num_probs):
     return rands/np.sum(rands)
 
 
-circuit = get_circuit(6,5)
+circuit = get_circuit(3,3)
 circuit.draw(output="mpl", style='iqp', cregbundle=False)
 plt.show()
 
