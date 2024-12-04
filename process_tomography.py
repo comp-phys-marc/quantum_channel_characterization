@@ -1,8 +1,13 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_experiments.library.tomography import ProcessTomography
-from qiskit.providers.basic_provider import BasicProvider
+import qiskit_aer
 import matplotlib.pyplot as plt
 import numpy as np
+
+from circuit_qiskit import noise_model
+
+
+
 
 if __name__ == '__main__':
 
@@ -25,12 +30,18 @@ if __name__ == '__main__':
     # circuit.measure(qr[3], cr[3])
     # circuit.measure(qr[4], cr[4])
 
-    backend = BasicProvider().get_backend('basic_simulator')
-    experiment_data = ProcessTomography(circuit).run(backend=backend).block_for_results()
 
+    backend = qiskit_aer.AerSimulator(method='density_matrix', noise_model=noise_model, device="GPU")
+
+    experiment_data = ProcessTomography(circuit).run(backend=backend).block_for_results()
     choi_matrix = experiment_data.analysis_results('state').value
 
-    plt.matshow(np.real(choi_matrix))
-    plt.show()
-    plt.matshow(np.imag(choi_matrix))
-    plt.show()
+    # plt.matshow(np.real(choi_matrix))
+    # plt.show()
+    # plt.matshow(np.imag(choi_matrix))
+    # plt.show()
+
+# Model:
+# Choi matrix
+#  Measuring many basis gets state reconstruction
+
