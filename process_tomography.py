@@ -30,11 +30,14 @@ def generate_dataset(n_qubits, depth, n_samples):
 
         choi_matrix = experiment_data.analysis_results('state').value
 
+        counts_list = list(map(lambda c: {'counts': c['counts']}, experiment_data.data()))
+
         json_dict[str(i)] = {
             "cnot_probs": cnot_probs,
             "reset_probs": reset_probs,
             "measurement_probs": measurement_probs,
-            "choi_matrix": choi_matrix
+            "choi_matrix": choi_matrix,
+            "outcomes": counts_list
         }
 
     return json_dict
