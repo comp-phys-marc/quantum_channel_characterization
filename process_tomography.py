@@ -48,7 +48,7 @@ if __name__ == '__main__':
     print("Benchmark data generation")
     for m in range(4, 6):
         print(f"Qubits: {m}")
-        for n in range(2, 5):
+        for n in range(4, 5):
             print(f"Layers: {n}")
             f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
 
