@@ -120,6 +120,10 @@ if __name__ == "__main__":
     super_operator = kraus_channel_as_super_operator(channel_ops)
     print(super_operator)
 
-    circuit = get_circuit(2, 2)
-    super_operator = circuit_to_super_operator(circuit)
-    print(super_operator)
+    for q in range(2, 5):
+        print(f"qubits: {q}")
+        for d in range(2, 5):
+            print(f"depth: {d}")
+            circuit = get_circuit(q, d)
+            super_operator = circuit_to_super_operator(circuit)
+            print(super_operator)
