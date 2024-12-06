@@ -67,7 +67,7 @@ def kraus_channel_as_super_operator(kraus_channel):
     for kraus_op in kraus_channel.data:
         pauli_op = kraus_operator_in_pauli_basis(kraus_op)
         if super_operator is None:
-            super_operator = super_operator_from_pauli_operator(pauli_op)
+            super_operator = np.array(super_operator_from_pauli_operator(pauli_op))
         else:
             super_operator = np.add(super_operator, super_operator_from_pauli_operator(pauli_op))
     return super_operator
