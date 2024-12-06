@@ -47,7 +47,7 @@ def super_operator_from_pauli_operator(pauli_operator):
     """
     num_qubits = len(pauli_operator.paulis[0])
     coeffs = pauli_operator.coeffs
-    basis = get_full_pauli_basis(num_qubits)
+    basis = get_full_pauli_basis(num_qubits)  # TODO: implement inverse lookup so don't have to gen full basis
     super_operator = [[0 for r in range(len(basis))] for s in range(len(basis))]
     for i in range(len(coeffs)):
         m = basis.index(str(pauli_operator.paulis[i]))
