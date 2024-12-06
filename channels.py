@@ -2,7 +2,9 @@ import numpy as np
 from qiskit_aer import Aer
 from qiskit.quantum_info import SparsePauliOp, Kraus
 from circuit_qiskit import get_circuit
+from evaluation_utils import profile
 
+@profile
 def get_full_pauli_basis(n):
     """
     Returns the full pauli basis for n qubits.
@@ -31,6 +33,7 @@ def get_full_pauli_basis(n):
     return basis_elements
 
 
+@profile
 def kraus_operator_in_pauli_basis(kraus_operator):
     """
     Decomposes an operator into the Pauli basis.
@@ -40,6 +43,7 @@ def kraus_operator_in_pauli_basis(kraus_operator):
     return SparsePauliOp.from_operator(kraus_operator)
 
 
+@profile
 def super_operator_from_pauli_operator(pauli_operator):
     """
     Constructs a superoperator from a weighted sum of Paulis.
@@ -58,6 +62,7 @@ def super_operator_from_pauli_operator(pauli_operator):
     return super_operator
 
 
+@profile
 def kraus_channel_as_super_operator(kraus_channel):
     """
     Transforms a Kraus channel into a superoperator.
@@ -74,6 +79,7 @@ def kraus_channel_as_super_operator(kraus_channel):
     return super_operator
 
 
+@profile
 def circuit_to_unitary(circuit):
     """
     Returns the unitary of a circuit by simulating it.
@@ -86,6 +92,7 @@ def circuit_to_unitary(circuit):
     return unitary
 
 
+@profile
 def unitary_to_kraus_operator(unitary):
     """
     Transforms a unitary into a Kraus representation.
@@ -95,6 +102,7 @@ def unitary_to_kraus_operator(unitary):
     return Kraus([unitary])
 
 
+@profile
 def circuit_to_super_operator(circuit):
     """
     Transforms a circuit into a superoperator by multiple steps.
