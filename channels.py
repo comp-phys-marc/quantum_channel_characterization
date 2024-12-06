@@ -1,6 +1,7 @@
 import numpy as np
+from qiskit_aer import Aer
 from qiskit.quantum_info import SparsePauliOp, Kraus
-
+from circuit_qiskit import get_circuit
 
 def get_full_pauli_basis(n):
     """
@@ -73,7 +74,44 @@ def kraus_channel_as_super_operator(kraus_channel):
     return super_operator
 
 
+def circuit_to_unitary(circuit):
+    """
+    Returns the unitary of a circuit by simulating it.
+    :param circuit: The circuit to convert.
+    :return: The unitary representation.
+    """
+    backend = Aer.get_backend('unitary_simulator')
+    result = backend.run(circuit).result()
+    unitary = result.get_unitary(circuit)
+    return unitary
+
+
+def unitary_to_kraus_operator(unitary):
+    """
+    Transforms a unitary into a Kraus representation.
+    :param circuit: The circuit to transform.
+    :return: The superoperator.
+    """
+    return Kraus([unitary])
+
+
+def circuit_to_super_operator(circuit):
+    """
+    Transforms a circuit into a superoperator by multiple steps.
+    :param circuit: The circuit to transform.
+    :return: The super operator.
+    """
+    unitary = circuit_to_unitary(circuit)
+    kraus = unitary_to_kraus_operator(unitary)
+    super_operator = kraus_channel_as_super_operator(kraus)
+    return super_operator
+
+
 if __name__ == "__main__":
     channel_ops = Kraus([np.array([[1, 0], [0, 1]]), np.array([[0, 1], [1, 0]]), np.array([[1, 0], [0, -1]])])
     super_operator = kraus_channel_as_super_operator(channel_ops)
+    print(super_operator)
+
+    circuit = get_circuit(2, 2)
+    super_operator = circuit_to_super_operator(circuit)
     print(super_operator)
