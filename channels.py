@@ -3,6 +3,37 @@ from qiskit_aer import Aer
 from qiskit.quantum_info import SparsePauliOp, Kraus
 from circuit_qiskit import get_circuit
 from evaluation_utils import profile
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def compare_choi_matrices(choi_one, choi_two):
+    """
+    Compares two Choi matrices using 8 matrix norms.
+    :param choi_one: The first Choi matrix.
+    :param choi_two: The second Choi matrix.
+    :return: The norms of the difference of the two Choi matrices.
+    """
+    assert(choi_one.shape == choi_two.shape)
+    diff = np.subtract(choi_one, choi_two)
+    return [
+        np.linalg.norm(diff, ord='fro'),   # Frobenius norm
+        np.linalg.norm(diff, ord='nuc'),   # Nuclear norm
+        np.linalg.norm(diff, ord=np.inf),  # max(sum(abs(x), axis=1))
+        np.linalg.norm(diff, ord=-np.inf), # min(sum(abs(x), axis=1))
+        np.linalg.norm(diff, ord=1),       # max(sum(abs(x), axis=0))
+        np.linalg.norm(diff, ord=-1),      # min(sum(abs(x), axis=0))
+        np.linalg.norm(diff, ord=2),       # 2-norm (largest singular value)
+        np.linalg.norm(diff, ord=-2),      # smallest singular value
+    ]
+
+
+def plot_choi(choi_matrix):
+    plt.matshow(np.real(choi_matrix))
+    plt.show()
+    plt.matshow(np.imag(choi_matrix))
+    plt.show()
+
 
 @profile
 def get_full_pauli_basis(n):

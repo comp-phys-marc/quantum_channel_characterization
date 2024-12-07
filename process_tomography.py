@@ -1,16 +1,8 @@
 from qiskit_experiments.library.tomography import ProcessTomography
-import matplotlib.pyplot as plt
-import numpy as np
 from circuit_qiskit import get_random_probs, get_noise_model, get_circuit
 from qiskit_aer import AerSimulator
 import json
 from data_utils import NumpyEncoder
-
-def plot_choi(choi_matrix):
-    plt.matshow(np.real(choi_matrix))
-    plt.show()
-    plt.matshow(np.imag(choi_matrix))
-    plt.show()
 
 def generate_dataset(n_qubits, depth, n_samples):
     json_dict = {}
