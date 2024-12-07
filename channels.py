@@ -4,6 +4,7 @@ from qiskit.quantum_info import SparsePauliOp, Kraus
 from evaluation_utils import profile
 import matplotlib.pyplot as plt
 import numpy as np
+from circuit_qiskit import get_circuit
 from data_utils import ComplexDecoder
 
 
@@ -152,17 +153,17 @@ def circuit_to_super_operator(circuit):
 
 
 if __name__ == "__main__":
-    # channel_ops = Kraus([np.array([[1, 0], [0, 1]]), np.array([[0, 1], [1, 0]]), np.array([[1, 0], [0, -1]])])
-    # super_operator = kraus_channel_as_super_operator(channel_ops)
-    # print(super_operator)
-    #
-    # for q in range(2, 5):
-    #     print(f"qubits: {q}")
-    #     for d in range(2, 5):
-    #         print(f"depth: {d}")
-    #         circuit = get_circuit(q, d)
-    #         super_operator = circuit_to_super_operator(circuit)
-    #         print(super_operator)
+    channel_ops = Kraus([np.array([[1, 0], [0, 1]]), np.array([[0, 1], [1, 0]]), np.array([[1, 0], [0, -1]])])
+    super_operator = kraus_channel_as_super_operator(channel_ops)
+    print(super_operator)
+
+    for q in range(2, 5):
+        print(f"qubits: {q}")
+        for d in range(2, 5):
+            print(f"depth: {d}")
+            circuit = get_circuit(q, d)
+            super_operator = circuit_to_super_operator(circuit)
+            print(super_operator)
 
     data = json.loads(json.loads(open("./data/training_dataset_2_qubits_2_layers.json", "r").read()), cls=ComplexDecoder)
 
