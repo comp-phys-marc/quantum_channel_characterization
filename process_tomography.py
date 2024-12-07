@@ -1,47 +1,62 @@
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from qiskit_experiments.library.tomography import ProcessTomography
-import qiskit_aer
-import matplotlib.pyplot as plt
-import numpy as np
+from circuit_qiskit import get_random_probs, get_noise_model, get_circuit
+from qiskit_aer import AerSimulator
+import json
+from data_utils import NumpyEncoder
 
-from circuit_qiskit import noise_model
+def generate_dataset(n_qubits, depth, n_samples):
+    json_dict = {}
+    circuit = get_circuit(n_qubits, depth)
 
+    for i in range(n_samples):
+        print(f"Run {i}")
 
+        cnot_probs = get_random_probs(16)
+        reset_probs = get_random_probs(4)
+        measurement_probs = get_random_probs(4)
+
+        noise_model = get_noise_model(cnot_probs, reset_probs, measurement_probs)
+
+        backend = AerSimulator(method='density_matrix', noise_model=noise_model)
+        experiment_data = ProcessTomography(circuit).run(backend=backend).block_for_results()
+
+        choi_matrix = experiment_data.analysis_results('state').value
+
+        counts_list = list(map(lambda c: {'counts': c['counts']}, experiment_data.data()))
+
+        json_dict[str(i)] = {
+            "cnot_probs": cnot_probs,
+            "reset_probs": reset_probs,
+            "measurement_probs": measurement_probs,
+            "choi_matrix": choi_matrix,
+            "outcomes": counts_list
+        }
+
+    return json_dict
 
 
 if __name__ == '__main__':
 
-    qr = QuantumRegister(3)
-    cr = ClassicalRegister(3)
-    circuit = QuantumCircuit(qr, cr)
-    circuit.x(qr[0])
-    circuit.x(qr[1])
-    circuit.x(qr[2])
-    # circuit.x(qr[3])
-    # circuit.x(qr[4])
-    circuit.cx(qr[0], qr[1])
-    circuit.cx(qr[1], qr[2])
-    # circuit.cx(qr[2], qr[3])
-    # circuit.cx(qr[3], qr[4])
-    # circuit.cx(qr[4], qr[0])
-    circuit.measure(qr[0], cr[0])
-    circuit.measure(qr[1], cr[1])
-    circuit.measure(qr[2], cr[2])
-    # circuit.measure(qr[3], cr[3])
-    # circuit.measure(qr[4], cr[4])
+    print("Benchmark data generation")
+    for m in range(2, 5):
+        print(f"Qubits: {m}")
+        for n in range(2, 5):
+            print(f"Layers: {n}")
+            f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
 
+            json_dict = generate_dataset(m, n, 100)
 
-    backend = qiskit_aer.AerSimulator(method='density_matrix', noise_model=noise_model, device="GPU")
+            json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
+            f.close()
 
-    experiment_data = ProcessTomography(circuit).run(backend=backend).block_for_results()
-    choi_matrix = experiment_data.analysis_results('state').value
+    print("Training data generation")
+    for m in range(2, 5):
+        print(f"Qubits: {m}")
+        for n in range(2, 5):
+            print(f"Layers: {n}")
+            f = open(f"data/training_dataset_{m}_qubits_{n}_layers.json", "w")
 
-    # plt.matshow(np.real(choi_matrix))
-    # plt.show()
-    # plt.matshow(np.imag(choi_matrix))
-    # plt.show()
+            json_dict = generate_dataset(m, n, 100)
 
-# Model:
-# Choi matrix
-#  Measuring many basis gets state reconstruction
-
+            json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
+            f.close()

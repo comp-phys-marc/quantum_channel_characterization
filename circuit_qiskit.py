@@ -59,13 +59,8 @@ def get_random_probs(num_probs):
     rands = np.random.rand(num_probs)
     return rands/np.sum(rands)
 
+if __name__ == '__main__':
 
-circuit = get_circuit(6,5)
-circuit.draw(output="mpl", style='iqp', cregbundle=False)
-plt.show()
-
-cnot_probs = get_random_probs(16)
-reset_probs = get_random_probs(4)
-measurement_probs = get_random_probs(4)
-
-noise_model = get_noise_model(cnot_probs, reset_probs, measurement_probs)
+    circuit = get_circuit(3,3)
+    circuit.draw(output="mpl", style='iqp', cregbundle=False)
+    plt.show()
