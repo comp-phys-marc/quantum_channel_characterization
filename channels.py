@@ -29,6 +29,11 @@ def compare_choi_matrices(choi_one, choi_two):
 
 
 def plot_choi(choi_matrix):
+    """
+    Plots the Choi matrix, its real and complex components separately.
+    :param choi_matrix: The matrix to plot.
+    :return: None
+    """
     plt.matshow(np.real(choi_matrix))
     plt.show()
     plt.matshow(np.imag(choi_matrix))
