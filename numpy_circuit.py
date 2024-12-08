@@ -331,6 +331,16 @@ def generate_data(num_qubits, layers, n_samples):
 
 
 if __name__ == "__main__":
+    # smoketest for quick Choi matrix generation method
+    data_from_tomograhpy = json.loads(json.loads(open("./data/training_dataset_4_qubits_2_layers.json", "r").read()),
+                      cls=ComplexDecoder)
+    data_from_direct_method = json.loads(json.loads(open("./data/direct_training_dataset_4_qubits_2_layers.json", "r")
+                                                    .read()), cls=ComplexDecoder)
+
+    assert (np.array(data_from_tomograhpy['0']['choi_matrix']).shape ==
+            np.array(data_from_direct_method['0']['choi_matrix']).shape)
+
+
     # generate 4-qubit data quickly
     for layers in range(2, 5):
         generate_data(4, layers, 100)
