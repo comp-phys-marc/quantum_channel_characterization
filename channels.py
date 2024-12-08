@@ -8,6 +8,20 @@ from circuit_qiskit import get_circuit
 from data_utils import ComplexDecoder
 
 
+def index_to_string(i, n):
+    digits = []
+    while i:
+        digits.append(str(int(i % 4)))
+        i //= 4
+    unpadded_string = ("".join(digits[::-1])
+                       .replace('0', 'I')
+                       .replace('1', 'X')
+                       .replace('2', 'Y')
+                       .replace('3', 'Z'))
+
+    return "".join(['I' for k in range(n - len(unpadded_string))]) + unpadded_string
+
+
 def compare_choi_matrices(choi_one, choi_two):
     """
     Compares two Choi matrices using 8 matrix norms.
@@ -49,19 +63,6 @@ def get_full_pauli_basis(n):
     :return: The full Pauli basis.
     """
     basis_elements = []
-
-    def index_to_string(i, n):
-        digits = []
-        while i:
-            digits.append(str(int(i % 4)))
-            i //= 4
-        unpadded_string = ("".join(digits[::-1])
-                           .replace('0', 'I')
-                           .replace('1', 'X')
-                           .replace('2', 'Y')
-                           .replace('3', 'Z'))
-
-        return "".join(['I' for k in range(n - len(unpadded_string))]) + unpadded_string
 
     # all the measurement bases
     for p in range(4 ** n):
@@ -165,7 +166,8 @@ if __name__ == "__main__":
             super_operator = circuit_to_super_operator(circuit)
             print(super_operator)
 
-    data = json.loads(json.loads(open("./data/training_dataset_2_qubits_2_layers.json", "r").read()), cls=ComplexDecoder)
+    data = json.loads(json.loads(open("./data/training_dataset_2_qubits_2_layers.json", "r").read()),
+                      cls=ComplexDecoder)
 
     norms = compare_choi_matrices(np.array(data["0"]["choi_matrix"]), np.array(data["1"]["choi_matrix"]))
     print(norms)

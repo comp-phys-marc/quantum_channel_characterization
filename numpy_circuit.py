@@ -1,0 +1,321 @@
+import json
+import random
+import scipy as sp
+import networkx as nx
+import numpy as np
+from functools import reduce
+from data_utils import ComplexDecoder
+from channels import index_to_string
+from evaluation_utils import profile
+
+PAULI_X = np.array([[0, 1],
+                    [1, 0]])
+PAULI_Y = np.array([[0, -1j],
+                    [1j, 0]])
+PAULI_Z = np.array([[1, 0],
+                    [0, -1]])
+LOOKUP = {
+    'I': np.eye(2),
+    'X': PAULI_X,
+    'Y': PAULI_Y,
+    'Z': PAULI_Z,
+}
+CNOT = np.array([[1, 0, 0, 0],
+                 [0, 1, 0, 0],
+                 [0, 0, 0, 1],
+                 [0, 0, 1, 0]])
+SWAP = np.array([[1, 0, 0, 0],
+                 [0, 0, 1, 0],
+                 [0, 1, 0, 0],
+                 [0, 0, 0, 1]])
+CNOT_10 = np.array([[1, 0, 0, 0],
+                    [0, 0, 0, 1],
+                    [0, 0, 1, 0],
+                    [0, 1, 0, 0]])
+CNOT_20 = np.array([[1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 1, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 1, 0, 0, 0, 0]])
+CNOT_30 = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0]])
+
+
+def correct_gate_dimensionality(gate, targets, num_qubits):
+    """
+    Correct a gate's dimensionality so it may be applied to a circuit.
+    Note that two qubit gates must be applied to adjacent qubits.
+    :param targets: The target qubits.
+    :param gate: The gate whose dimensionality to correct.
+    :return: The corrected gate.
+    """
+
+    if len(targets) == 1:
+        return reduce(
+            lambda state, d_qubit: np.kron(state, d_qubit),
+            [(np.eye(2) if q not in targets else gate) for q in range(num_qubits)]
+        )
+    else:
+        return get_CNOT_matrix(targets[0], targets[1], num_qubits)
+
+
+@profile
+def get_circuit_matrix_repr(
+        num_wires,
+        num_layers,
+        cnot_error_probs,
+        reset_error_probs,
+        measurement_error_probs,
+        method=np.matmul,
+        initial=None
+    ):
+    """
+    Constructs the matrix representation of a circuit with errors included as randomly drawn Pauli.
+    Can construct the Laplacian or the unitary representation depending on the method provided.
+    :param num_wires: The number of wires in the circuit.
+    :param num_layers: The number of layers in the circuit.
+    :param cnot_error_probs: The probabilities of CNOT errors.
+    :param reset_error_probs: The probabilities of reset errors.
+    :param measurement_error_probs: The probabilities of measurement errors.
+    :return: The matrix representation of the circuit.
+    """
+    if initial is None:
+        repr = np.eye(2 ** num_wires)
+    else:
+        repr = initial
+    for qubit in range(num_wires):
+        reset_error = correct_gate_dimensionality(draw_pauli_error(reset_error_probs, 1),
+                                                  [qubit], num_wires)
+        repr = method(reset_error, repr)
+
+    for layer in range(num_layers):
+        for wire in range(num_wires):
+            flip = method(correct_gate_dimensionality(PAULI_X, [wire], num_wires), repr)
+            repr = method(flip, repr)
+        repr = apply_CNOT_layer(repr, num_wires, layer % 2, cnot_error_probs, method)
+
+    for qubit in range(num_wires):
+        meas_error = correct_gate_dimensionality(draw_pauli_error(measurement_error_probs, 1),
+                                                  [qubit], num_wires)
+        repr = method(meas_error, repr)
+
+    return repr
+
+
+def draw_pauli_error_string(pauli_probs, target_size):
+    """
+    Given probabilities of Pauli errors, draws a random Pauli string.
+    :param pauli_probs: The probabilities of Pauli errors.
+    :param target_size: The number of target qubits.
+    :return: The Pauli string.
+    """
+    rand = random.uniform(0, 1)
+
+    for i in range(len(pauli_probs)):
+        sum = 0
+        for j in range(i + 1):
+            sum += pauli_probs[j]
+        if rand < sum:
+            return index_to_string(i, target_size)
+
+
+def draw_pauli_error(pauli_probs, target_size):
+    """
+    Given probabilities of Pauli errors, draws a random Pauli.
+    :param pauli_probs: The probabilities of Pauli errors.
+    :param target_size: The number of target qubits.
+    :return: The Pauli matrix drawn.
+    """
+    def index_to_error_operator(i, target_size):
+        digits = []
+        while i:
+            digits.append(str(int(i % 4)))
+            i //= 4
+        unpadded_len = 0
+        error = None
+        for digit in reversed(digits):
+            unpadded_len += 1
+            if int(digit) == 0:
+                op = np.eye(2 ** target_size)
+            elif int(digit) == 1:
+                op = PAULI_X
+            elif int(digit) == 2:
+                op = PAULI_Y
+            elif int(digit) == 3:
+                op = PAULI_Z
+            if error is None:
+                error = op
+            else:
+                error = np.kron(op, error)
+
+        for j in range(target_size - unpadded_len):
+            if error is None:
+                error = np.eye(2 ** target_size)
+            else:
+                error = np.kron(np.eye(2 ** target_size), error)
+
+        return error
+
+    rand = random.uniform(0, 1)
+
+    for i in range(len(pauli_probs)):
+        sum = 0
+        for j in range(i + 1):
+            sum += pauli_probs[j]
+        if rand < sum:
+            return index_to_error_operator(i, target_size)
+
+
+def apply_CNOT_layer(repr, num_wires, layer_mod_2, cnot_error_probs, method):
+    """
+    Applies the CNOT layer to the matrix representation of the circuit.
+    :param circuit: The matrix representation to transform by a CNOT layer.
+    :param num_wires: The number of qubits.
+    :param layer_mod_2: Whether this is an even or odd layer.
+    :param cnot_error_probs: The probabilities of CNOT errors.
+    :param method: The method to use to apply the CNOTs and errors.
+    :return: The matrix representation of the circuit with the CNOT layer applied.
+    """
+    if num_wires % 2 == 0:
+        final_wire = num_wires - layer_mod_2
+        wrap_around = bool(layer_mod_2)
+    else:
+        final_wire = num_wires + layer_mod_2 - 1
+        wrap_around = not bool(layer_mod_2)
+
+    for wire in range(layer_mod_2, final_wire, 2):
+        repr = method(correct_gate_dimensionality(CNOT, [wire, wire + 1], num_wires), repr)
+
+        pauli_error_str = draw_pauli_error_string(cnot_error_probs, 2)
+
+        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[0]], [wire], num_wires), repr)
+        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[1]], [wire + 1], num_wires), repr)
+
+    if wrap_around:
+        if num_wires == 2:
+            repr = method(CNOT_10, repr)
+        elif num_wires == 3:
+            repr = method(CNOT_20, repr)
+        elif num_wires == 4:
+            repr = method(CNOT_30, repr)
+        else:
+            raise NotImplementedError("Only up to 4 qubits supported.")
+
+        pauli_error_str = draw_pauli_error_string(cnot_error_probs, 2)
+
+        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[0]], [num_wires - 1], num_wires), repr)
+        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[1]], [0], num_wires), repr)
+
+    return repr
+
+
+def get_CNOT_matrix(source, target, num_qubits):
+    """
+    Returns a CNOT matrix for the given source, target and number of qubits.
+    :param source: The source qubit.
+    :param target: The target qubit.
+    :param num_qubits: The number of qubits.
+    :return: The CNOT gate.
+    """
+
+    cx_matrix = [[0. for _ in range(2 ** num_qubits)] for _ in range(2 ** num_qubits)]
+
+    for i, row in enumerate(cx_matrix):
+        label = f'{i:0{num_qubits}b}'
+        if label[source] == '1':
+            label = label[0:target] + '0' if label[target] == '1' else '1' + label[target + 1:]
+        one_position = int(label, 2)
+        row[one_position] = 1.
+
+    return np.array(cx_matrix)
+
+
+def adjacency_matrix_to_laplacian(graph):
+    """
+    Converts a networkx graph to a Laplacian matrix.
+    :param graph: The graph to convert.
+    :return: The Laplacian matrix.
+    """
+    laplacian = sp.sparse.csr_matrix.toarray(nx.laplacian_matrix(nx.from_numpy_array(graph)))
+    return laplacian
+
+
+def apply_unitary(unitary, laplacian):
+    """
+    Performs the equivalent of a unitary evolution on the Laplacian representation. Assumes beta=1.
+    :param laplacian: The Laplacian representing the state that evolves with unitary dynamics.
+    :param unitary: The unitary to apply.
+    :return: The Laplacian after unitary evolution.
+    """
+    return sp.linalg.logm(unitary) - laplacian + sp.linalg.logm(np.transpose(unitary))
+
+
+def laplacian_to_density_matrix(laplacian, beta=1):
+    """
+    Converts a Laplacian matrix to a density matrix.
+    :param laplacian: The Laplacian to convert.
+    :param beta: The inverse temperature.
+    :return: The density matrix.
+    """
+    return (sp.linalg.expm(-beta * laplacian)) / np.trace(sp.linalg.expm(-beta * laplacian))
+
+
+def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qubits, num_layers):
+    """
+    Creates a Laplacian representing a circuit with the provided noise model.
+    :param pauli_probs: The probabilities of Pauli errors.
+    :return: The Laplacian.
+    """
+    laplacian = np.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
+                          [0 for k in range(i, 2 ** n)] for i in range(2 ** n)])
+
+    return get_circuit_matrix_repr(
+        num_qubits,
+        num_layers,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        method=apply_unitary,
+        initial=laplacian
+    )
+
+
+if __name__ == "__main__":
+    # number of qubits
+    n = 4
+
+    # initial matrix representation
+    laplacian = np.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
+                          [0 for k in range(i + 1, 2 ** n)] for i in range(2 ** n)])
+
+    # load some example error probabilities
+    data = json.loads(json.loads(open("./data/training_dataset_2_qubits_2_layers.json", "r").read()),
+                      cls=ComplexDecoder)
+
+    # simulate one shot with a graph Laplacian
+    laplacian = get_circuit_matrix_repr(
+        n,
+        2,
+        data['0']['cnot_probs'],
+        data['0']['reset_probs'],
+        data['0']['measurement_probs'],
+        method=apply_unitary,
+        initial=laplacian
+    )
