@@ -256,7 +256,7 @@ def laplacian_to_density_matrix(laplacian, beta=1, truncate=None):
                 expm = mul / sp.math.factorial(p)
             else:
                 expm += mul / sp.math.factorial(p)
-        return (sp.linalg.expm(-beta * laplacian)) / np.trace(expm)
+        return expm / np.trace(expm)
 
 def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qubits, num_layers):
     """
