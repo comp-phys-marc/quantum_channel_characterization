@@ -140,6 +140,7 @@ def circuit_to_super_operator(circuit):
 
     return super_operator
 
+
 if __name__ == "__main__":
     channel_ops = Kraus([np.array([[1, 0], [0, 1]]), np.array([[0, 1], [1, 0]]), np.array([[1, 0], [0, -1]])])
     super_operator = kraus_channel_as_super_operator(channel_ops)

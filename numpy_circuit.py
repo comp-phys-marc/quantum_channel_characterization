@@ -10,6 +10,7 @@ from pauli_utils import index_to_string, PAULI_X, index_to_error_operator, LOOKU
 from evaluation_utils import profile
 from circuit_qiskit import get_random_probs
 from data_utils import NumpyEncoder
+from qiskit.quantum_info.operators.channel import Choi, SuperOp
 
 
 CNOT = np.array([[1, 0, 0, 0],
@@ -313,7 +314,8 @@ def generate_data(num_qubits, layers, n_samples):
         reset_probs = get_random_probs(4)
         measurement_probs = get_random_probs(4)
 
-        choi = pauli_probs_to_super_operator(cnot_probs, reset_probs, measurement_probs, num_qubits, layers)
+        super_op = pauli_probs_to_super_operator(cnot_probs, reset_probs, measurement_probs, num_qubits, layers)
+        choi = Choi(SuperOp(super_op))
 
         data[str(i)] = {
             'cnot_probs': cnot_probs,
