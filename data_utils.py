@@ -56,6 +56,19 @@ class ComplexDecoder(json.JSONDecoder):
         return curr
 
 
+def expectation_matrix_from_counts(dataset="benchmarking", qubits=2, layers=2):
+    """
+    Builds expectation matrices from counts.
+    :param dataset: The type of dataset to build expectation matrices from.
+    :param qubits: The number of qubits.
+    :param layers: The number of layers in the circuit.
+    :return: The expectation matrices.
+    """
+    data = json.loads(json.loads(open(f"./data/{dataset}_dataset_{qubits}_qubits_{layers}_layers.json", "r").read()),
+                      cls=ComplexDecoder)
+
+
+
 if __name__ == '__main__':
     json_dict = dict()
     json_dict[0] = {
