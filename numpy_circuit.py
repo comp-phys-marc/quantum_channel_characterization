@@ -4,9 +4,12 @@ import scipy as sp
 import networkx as nx
 import numpy as np
 from functools import reduce
+from channels import unitary_to_kraus_operator, kraus_channel_as_super_operator
 from data_utils import ComplexDecoder
 from pauli_utils import index_to_string, PAULI_X, index_to_error_operator, LOOKUP
 from evaluation_utils import profile
+from circuit_qiskit import get_random_probs
+from data_utils import NumpyEncoder
 
 
 CNOT = np.array([[1, 0, 0, 0],
@@ -274,9 +277,64 @@ def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qub
     )
 
 
+def pauli_probs_to_super_operator(cnot_probs, reset_probs, measurement_probs, num_qubits, num_layers):
+    """
+    Calculates a superoperator from a set of Pauli error probabilities.
+    :param cnot_probs: The probability of a CNOT error.
+    :param reset_probs: The probability of a reset error.
+    :param measurement_probs: The probability of a measurement error.
+    :param num_qubits: The number of qubits in the circuit.
+    :param num_layers: The number of layers in the circuit.
+    :return:
+    """
+    unitary = get_circuit_matrix_repr(
+        num_qubits,
+        num_layers,
+        cnot_probs,
+        reset_probs,
+        measurement_probs
+    )
+
+    super_operator = kraus_channel_as_super_operator(unitary_to_kraus_operator(unitary))
+    return super_operator
+
+
+def generate_data(num_qubits, layers, n_samples):
+    """
+    Generates data for the given circuit parameters.
+    :param num_qubits: The number of qubits in the circuit.
+    :param layers: The number of layers in the circuit.
+    :param n_samples: The number of samples.
+    :return: None
+    """
+    data = {}
+    for i in range(n_samples):
+        cnot_probs = get_random_probs(16)
+        reset_probs = get_random_probs(4)
+        measurement_probs = get_random_probs(4)
+
+        choi = pauli_probs_to_super_operator(cnot_probs, reset_probs, measurement_probs, num_qubits, layers)
+
+        data[str(i)] = {
+            'cnot_probs': cnot_probs,
+            'reset_probs': reset_probs,
+            'measurement_probs': measurement_probs,
+            'choi_matrix': choi
+        }
+
+    f = open(f"data/direct_training_dataset_4_qubits_{layers}_layers.json", "w")
+
+    json.dump(json.dumps(data, cls=NumpyEncoder), f)
+    f.close()
+
+
 if __name__ == "__main__":
+    # generate 4-qubit data quickly
+    for layers in range(2, 5):
+        generate_data(4, layers, 100)
+
     # number of qubits
-    n = 4
+    n = 2
 
     # initial matrix representation
     laplacian = np.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
