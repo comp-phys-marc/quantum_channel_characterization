@@ -5,21 +5,10 @@ import networkx as nx
 import numpy as np
 from functools import reduce
 from data_utils import ComplexDecoder
-from channels import index_to_string
+from pauli_utils import index_to_string, PAULI_X, index_to_error_operator, LOOKUP
 from evaluation_utils import profile
 
-PAULI_X = np.array([[0, 1],
-                    [1, 0]])
-PAULI_Y = np.array([[0, -1j],
-                    [1j, 0]])
-PAULI_Z = np.array([[1, 0],
-                    [0, -1]])
-LOOKUP = {
-    'I': np.eye(2),
-    'X': PAULI_X,
-    'Y': PAULI_Y,
-    'Z': PAULI_Z,
-}
+
 CNOT = np.array([[1, 0, 0, 0],
                  [0, 1, 0, 0],
                  [0, 0, 0, 1],
@@ -28,6 +17,9 @@ SWAP = np.array([[1, 0, 0, 0],
                  [0, 0, 1, 0],
                  [0, 1, 0, 0],
                  [0, 0, 0, 1]])
+
+# some frequently used matrices pre-computed for runtime optimization
+
 CNOT_10 = np.array([[1, 0, 0, 0],
                     [0, 0, 0, 1],
                     [0, 0, 1, 0],
@@ -143,36 +135,6 @@ def draw_pauli_error(pauli_probs, target_size):
     :param target_size: The number of target qubits.
     :return: The Pauli matrix drawn.
     """
-    def index_to_error_operator(i, target_size):
-        digits = []
-        while i:
-            digits.append(str(int(i % 4)))
-            i //= 4
-        unpadded_len = 0
-        error = None
-        for digit in reversed(digits):
-            unpadded_len += 1
-            if int(digit) == 0:
-                op = np.eye(2 ** target_size)
-            elif int(digit) == 1:
-                op = PAULI_X
-            elif int(digit) == 2:
-                op = PAULI_Y
-            elif int(digit) == 3:
-                op = PAULI_Z
-            if error is None:
-                error = op
-            else:
-                error = np.kron(op, error)
-
-        for j in range(target_size - unpadded_len):
-            if error is None:
-                error = np.eye(2 ** target_size)
-            else:
-                error = np.kron(np.eye(2 ** target_size), error)
-
-        return error
-
     rand = random.uniform(0, 1)
 
     for i in range(len(pauli_probs)):
@@ -267,15 +229,30 @@ def apply_unitary(unitary, laplacian):
     return sp.linalg.logm(unitary) - laplacian + sp.linalg.logm(np.transpose(unitary))
 
 
-def laplacian_to_density_matrix(laplacian, beta=1):
+def laplacian_to_density_matrix(laplacian, beta=1, truncate=None):
     """
     Converts a Laplacian matrix to a density matrix.
     :param laplacian: The Laplacian to convert.
     :param beta: The inverse temperature.
+    :param truncate: How much to truncate the matrix exponential.
     :return: The density matrix.
     """
-    return (sp.linalg.expm(-beta * laplacian)) / np.trace(sp.linalg.expm(-beta * laplacian))
-
+    if truncate is None:
+        return (sp.linalg.expm(-beta * laplacian)) / np.trace(sp.linalg.expm(-beta * laplacian))
+    else:
+        expm = None
+        for p in range(truncate):
+            mul = None
+            for q in range(p):
+                if mul is None:
+                    mul = (-beta * laplacian)
+                else:
+                    mul = np.matmul(-beta * laplacian, mul)
+            if expm is None:
+                expm = mul / sp.math.factorial(p)
+            else:
+                expm += mul / sp.math.factorial(p)
+        return (sp.linalg.expm(-beta * laplacian)) / np.trace(expm)
 
 def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qubits, num_layers):
     """

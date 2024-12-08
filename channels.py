@@ -6,20 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from circuit_qiskit import get_circuit
 from data_utils import ComplexDecoder
-
-
-def index_to_string(i, n):
-    digits = []
-    while i:
-        digits.append(str(int(i % 4)))
-        i //= 4
-    unpadded_string = ("".join(digits[::-1])
-                       .replace('0', 'I')
-                       .replace('1', 'X')
-                       .replace('2', 'Y')
-                       .replace('3', 'Z'))
-
-    return "".join(['I' for k in range(n - len(unpadded_string))]) + unpadded_string
+from pauli_utils import index_to_string
 
 
 def compare_choi_matrices(choi_one, choi_two):
@@ -150,8 +137,8 @@ def circuit_to_super_operator(circuit):
     unitary = circuit_to_unitary(circuit)
     kraus = unitary_to_kraus_operator(unitary)
     super_operator = kraus_channel_as_super_operator(kraus)
-    return super_operator
 
+    return super_operator
 
 if __name__ == "__main__":
     channel_ops = Kraus([np.array([[1, 0], [0, 1]]), np.array([[0, 1], [1, 0]]), np.array([[1, 0], [0, -1]])])
