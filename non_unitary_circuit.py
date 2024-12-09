@@ -7,6 +7,7 @@ from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
 from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
 from qiskit.quantum_info import Kraus, Choi, SuperOp
 
+
 class NonUnitaryRepr:
     """
     The representation of the non-unitary circuit which may be in one embodiment a sum of Laplacians,
@@ -43,7 +44,7 @@ class NonUnitaryRepr:
 
         self.unitary_systems = [sum]
 
-    def apply_unitary_operator(self, op):
+    def apply_unitary_method(self, op):
         """
         Applies a unitary operator to the representation of the non-unitary circuit.
         :param op: The unitary operator to apply.
@@ -51,7 +52,7 @@ class NonUnitaryRepr:
         """
         pass
 
-    def apply_non_unitary_operator(self, op):
+    def apply_non_unitary_method(self, op):
         """
         Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
         :param ops: The non-unitary operators to apply.
@@ -73,11 +74,11 @@ class NonUnitaryRepr:
             pauli_op = index_to_error_operator(i, len(targets)) * error_probs[i]
             ops.append(correct_gate_dimensionality(pauli_op, targets, num_qubits))
 
-        self.apply_non_unitary_operator(ops)
+        self.apply_non_unitary_method(ops)
 
         return self
 
-    def two_error_applications(self, error_probs, targets, num_qubits, repr):
+    def two_error_applications(self, error_probs, targets, num_qubits):
         """
         Applies a two-qubit error by simulating non-unitary dynamics.
         :param error_probs: The probability dist from which to draw.
@@ -95,7 +96,7 @@ class NonUnitaryRepr:
 
             ops.append(pauli_op)
 
-        self.apply_non_unitary_operator(ops)
+        self.apply_non_unitary_method(ops)
 
         return repr
 
@@ -298,20 +299,23 @@ def get_non_unitary_matrix_repr(
     """
 
     def unitary_evolution_method(op, repr):
-        return repr.apply_unitary_method(op)
+        repr.apply_unitary_method(op)
+        return repr
 
     def single_error_method(error_probs, targets, num_wires, repr):
-        return repr.single_error_application(error_probs, targets, num_wires)
+        repr.single_error_application(error_probs, targets, num_wires)
+        return repr
 
     def two_qubit_error_method(error_probs, targets, num_wires, repr):
-        return repr.two_qubit_error_application(error_probs, targets, num_wires)
+        repr.two_error_applications(error_probs, targets, num_wires)
+        return repr
 
     if type == "density_matrix":
-        initial = DensityMatrices(num_wires)
+        initial = DensityMatrices(num_qubits=num_wires)
     elif type == "laplacian":
-        initial = Laplacian(num_wires)
+        initial = LaplacianMatrices(num_qubits=num_wires)
     else:
-        initial = Tape(num_wires)
+        initial = Tape(num_qubits=num_wires)
 
     repr = get_circuit_matrix_repr(
         num_wires,
