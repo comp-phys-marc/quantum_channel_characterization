@@ -109,34 +109,16 @@ def expectation_matrix_from_counts(dataset="benchmarking", qubits=4, layers=4):
     data = json.loads(json.loads(open(f"./data/{dataset}_dataset_{qubits}_qubits_{layers}_layers.json", "r").read()),
                       cls=ComplexDecoder)
 
-    expectations_matrices = []
-
-    for k, v in data.items():
-        outcomes_arr = v['outcomes']
-        i = 0
-        expectations = np.array([[0.0 for _ in range(2 ** qubits)] for _ in range(4 ** qubits)])
-        while i < (2 ** qubits) * (4 ** qubits):
-            measurement = outcomes_arr[i]
-            pauli_string = index_to_string(math.floor(i / (2 ** qubits)), qubits)  # TODO: is this how they are ordered? check assumption.
-            counts = measurement['counts']
-            total = 0
-            total_weight = 0
-            for bitstring, times_observed in counts.items():
-                total += bitstring_to_observable_eigenvalue(bitstring, pauli_string) * times_observed
-                total_weight += times_observed
-            expectation = total / total_weight
-            expectations[math.floor(i / (2 ** qubits))][i % (2 ** qubits)] = expectation  # TODO: check order assumption.
-            i += 1
-        expectations_matrices.append(expectations)
+    expectations_matrices = expectation_matrix_from_counts_from_data(data, qubits)
 
     return expectations_matrices
+
 
 def expectation_matrix_from_counts_from_data(data, qubits):
     """
     Builds expectation matrices from counts.
-    :param dataset: The type of dataset to build expectation matrices from.
+    :param data: The loaded json.
     :param qubits: The number of qubits.
-    :param layers: The number of layers in the circuit.
     :return: The expectation matrices.
     """
     expectations_matrices = []
