@@ -6,6 +6,7 @@ from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
     density_matrix_to_laplacian
 from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
 from qiskit.quantum_info import Kraus, Choi
+from evaluation_utils import profile
 
 
 class NonUnitaryRepr:
@@ -206,15 +207,15 @@ def truncated_logm(truncate, diff):
     logm = None
     for k in range(0, truncate):
         mul = None
-        for i in range(k):
+        for i in range(k + 1):
             if mul is None:
                 mul = diff
             else:
                 mul = np.matmul(diff, mul)
         if logm is None:
-            logm = -mul / k
+            logm = -mul / (k + 1)
         else:
-            logm -= mul / k
+            logm -= mul / (k + 1)
     return logm
 
 
@@ -246,6 +247,48 @@ class LaplacianMatrices(NonUnitaryRepr):
         # convert back to Laplacian
         laplacian = density_matrix_to_laplacian(sum)
         self.unitary_systems = [laplacian]
+
+    def single_error_application(self, error_probs, targets, num_qubits, truncate=None):
+        """
+        Applies a single-qubit error by simulating non-unitary dynamics.
+        :param error_probs: The probability dist.
+        :param targets: The target qubits.
+        :param num_qubits: The number of qubits in the system.
+        :param repr: The matrix repr of the circuit.
+        :param truncate: How much to expand the power series.
+        :return: The evolved repr.
+        """
+        ops = []
+        for i in range(len(error_probs)):
+            pauli_op = index_to_error_operator(i, len(targets)) * error_probs[i]
+            ops.append(correct_gate_dimensionality(pauli_op, targets, num_qubits))
+
+        self.apply_non_unitary_method(ops, truncate=truncate)
+
+        return self
+
+    def two_error_applications(self, error_probs, targets, num_qubits, truncate=None):
+        """
+        Applies a two-qubit error by simulating non-unitary dynamics.
+        :param error_probs: The probability dist from which to draw.
+        :param targets: The target qubits.
+        :param num_qubits: The number of qubits in the system.
+        :param repr: The matrix repr of the circuit.
+        :param truncate: How much to expand the power series.
+        :return: The evolved repr.
+        """
+        ops = []
+        for i in range(len(error_probs)):
+            pauli_ops_strs = index_to_string(i, len(targets))
+            pauli_op = correct_gate_dimensionality(LOOKUP[pauli_ops_strs[0]], [targets[0]], num_qubits) @ \
+                      correct_gate_dimensionality(LOOKUP[pauli_ops_strs[1]], [targets[1]], num_qubits) \
+                      * error_probs[i]
+
+            ops.append(pauli_op)
+
+        self.apply_non_unitary_method(ops, truncate=truncate)
+
+        return repr
 
     def apply_unitary_method(self, op, sum=False, truncate=None):
         """
@@ -298,6 +341,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                 self.sum()
 
 
+@profile
 def get_non_unitary_matrix_repr(
         num_wires,
         num_layers,
@@ -318,15 +362,24 @@ def get_non_unitary_matrix_repr(
     """
 
     def unitary_evolution_method(op, repr):
-        repr.apply_unitary_method(op)
+        if type == "laplacian":
+            repr.apply_unitary_method(op, truncate=1)
+        else:
+            repr.apply_unitary_method(op)
         return repr
 
     def single_error_method(error_probs, targets, num_wires, repr):
-        repr.single_error_application(error_probs, targets, num_wires)
+        if type == "laplacian":
+            repr.single_error_application(error_probs, targets, num_wires, truncate=1)
+        else:
+            repr.single_error_application(error_probs, targets, num_wires)
         return repr
 
     def two_qubit_error_method(error_probs, targets, num_wires, repr):
-        repr.two_error_applications(error_probs, targets, num_wires)
+        if type == "laplacian":
+            repr.two_error_applications(error_probs, targets, num_wires, truncate=1)
+        else:
+            repr.two_error_applications(error_probs, targets, num_wires)
         return repr
 
     if type == "density_matrix":
@@ -357,8 +410,11 @@ if __name__ == "__main__":
     reset_probs = get_random_probs(4)
     measurement_probs = get_random_probs(4)
 
+    print("Building Choi matrix")
+
+    # get Choi matrix
     repr = get_non_unitary_matrix_repr(
-        3,
+        2,
         2,
         cnot_probs,
         reset_probs,
@@ -368,4 +424,27 @@ if __name__ == "__main__":
 
     kraus = Kraus(repr.unitary_systems)
     choi = Choi(kraus)
-    print(choi)
+
+    print("Evolving density matrix")
+
+    # simulate evolution using density matrix approach
+    get_non_unitary_matrix_repr(
+        2,
+        2,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        type="density_matrix"
+    )
+
+    print("Evolving graph Laplacian")
+
+    # simulate evolution using graph Laplacian approach
+    get_non_unitary_matrix_repr(
+        2,
+        2,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        type="laplacian"
+    )
