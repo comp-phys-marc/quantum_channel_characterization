@@ -228,6 +228,9 @@ class LaplacianMatrices(NonUnitaryRepr):
         :param num_qubits: The number of qubits in the system.
         """
         super().__init__(unitary_systems, num_qubits)
+        self.seen_matrices = []
+        self.computed_logms = []
+        self.computed_logms_inv = []
 
     def sum(self, truncate=None):
         """
@@ -301,14 +304,33 @@ class LaplacianMatrices(NonUnitaryRepr):
 
         new_list = []
         for unitary_system in self.unitary_systems:
-            diff = np.subtract(np.eye(2 ** self.num_qubits), op)
-            if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
-                new_unitary_system = truncated_logm(truncate, diff) \
-                                      - unitary_system \
-                                      + truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
-                                                                             np.transpose(op)))
+            if len(self.seen_matrices) > 0:
+                index = 0
+                found = False
+                for arr in self.seen_matrices:
+                    if np.allclose(arr, op):
+                        found = True
+                        break
+                    index += 1
+            if len(self.seen_matrices) > 0 and found:
+                new_unitary_system = self.computed_logms[index] - unitary_system + self.computed_logms_inv[index]
             else:
-                new_unitary_system = sp.linalg.logm(op) - unitary_system + sp.linalg.logm(np.transpose(op))
+                diff = np.subtract(np.eye(2 ** self.num_qubits), op)
+                if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
+                    truncated = truncated_logm(truncate, diff)
+                    truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
+                                                                                 np.transpose(op)))
+                    new_unitary_system = truncated - unitary_system + truncated_inv
+                    self.seen_matrices.append(op)
+                    self.computed_logms.append(truncated)
+                    self.computed_logms_inv.append(truncated_inv)
+                else:
+                    lgm = sp.linalg.logm(op)
+                    lgm_inv = sp.linalg.logm(np.transpose(op))
+                    new_unitary_system = lgm - unitary_system + lgm_inv
+                    self.seen_matrices.append(op)
+                    self.computed_logms.append(lgm)
+                    self.computed_logms_inv.append(lgm_inv)
             new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:
@@ -327,14 +349,34 @@ class LaplacianMatrices(NonUnitaryRepr):
             new_list = []
             for op in ops:
                 for unitary_system in self.unitary_systems:
-                    diff = np.subtract(np.eye(2 ** self.num_qubits), op)
-                    if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
-                        new_unitary_system = truncated_logm(truncate, diff) \
-                                             - unitary_system \
-                                             + truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
-                                                                                    np.transpose(op)))
+                    if len(self.seen_matrices) > 0:
+                        index = 0
+                        found = False
+                        for arr in self.seen_matrices:
+                            if np.allclose(arr, op):
+                                found = True
+                                break
+                            index += 1
+                    if len(self.seen_matrices) > 0 and found:
+                        new_unitary_system = self.computed_logms[index] - unitary_system + self.computed_logms_inv[
+                            index]
                     else:
-                        new_unitary_system = sp.linalg.logm(op) - unitary_system + sp.linalg.logm(np.transpose(op))
+                        diff = np.subtract(np.eye(2 ** self.num_qubits), op)
+                        if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
+                            truncated = truncated_logm(truncate, diff)
+                            truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
+                                                                                 np.transpose(op)))
+                            new_unitary_system = truncated - unitary_system + truncated_inv
+                            self.seen_matrices.append(op)
+                            self.computed_logms.append(truncated)
+                            self.computed_logms_inv.append(truncated_inv)
+                        else:
+                            lgm = sp.linalg.logm(op)
+                            lgm_inv = sp.linalg.logm(np.transpose(op))
+                            new_unitary_system = lgm - unitary_system + lgm_inv
+                            self.seen_matrices.append(op)
+                            self.computed_logms.append(lgm)
+                            self.computed_logms_inv.append(lgm_inv)
                     new_list.append(new_unitary_system)
             self.unitary_systems = new_list
             if sum:
