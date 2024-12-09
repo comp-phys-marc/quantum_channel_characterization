@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
-from unitary_circuit import get_circuit_matrix_repr
+from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
+from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
 
 
 class NonUnitaryRepr:
@@ -39,23 +40,61 @@ class NonUnitaryRepr:
 
         self.unitary_systems = [sum]
 
-    def apply_unitary_operator(self, op, repr):
+    def apply_unitary_operator(self, op):
         """
         Applies a unitary operator to the representation of the non-unitary circuit.
         :param op: The unitary operator to apply.
-        :param repr: The matrix representation of the state.
         :return: The evolved matrix repr.
         """
         pass
 
-    def apply_non_unitary_operator(self, op, repr):
+    def apply_non_unitary_operator(self, op):
         """
         Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
         :param ops: The non-unitary operators to apply.
-        :param repr: The matrix representation of the state.
         :return: The evolved matrix repr.
         """
         pass
+
+    def single_error_application(self, error_probs, targets, num_qubits):
+        """
+        Applies a single-qubit error by simulating non-unitary dynamics.
+        :param error_probs: The probability dist.
+        :param targets: The target qubits.
+        :param num_qubits: The number of qubits in the system.
+        :param repr: The matrix repr of the circuit.
+        :return: The evolved repr.
+        """
+        ops = []
+        for i in range(len(error_probs)):
+            pauli_op = index_to_error_operator(i, len(targets)) * error_probs[i]
+            ops.append(correct_gate_dimensionality(pauli_op, targets, num_qubits))
+
+        self.apply_non_unitary_operator(ops)
+
+        return self
+
+    def two_error_applications(self, error_probs, targets, num_qubits, repr):
+        """
+        Applies a two-qubit error by simulating non-unitary dynamics.
+        :param error_probs: The probability dist from which to draw.
+        :param targets: The target qubits.
+        :param num_qubits: The number of qubits in the system.
+        :param repr: The matrix repr of the circuit.
+        :return: The evolved repr.
+        """
+        ops = []
+        for i in range(len(error_probs)):
+            pauli_ops_strs = index_to_string(i, len(targets))
+            pauli_op = correct_gate_dimensionality(LOOKUP[pauli_ops_strs[0]], [targets[0]], num_qubits) @ \
+                      correct_gate_dimensionality(LOOKUP[pauli_ops_strs[1]], [targets[1]], num_qubits) \
+                      * error_probs[i]
+
+            ops.append(pauli_op)
+
+        self.apply_non_unitary_operator(ops)
+
+        return repr
 
 
 class DensityMatrices(NonUnitaryRepr):
@@ -188,17 +227,34 @@ class LaplacianMatrices(NonUnitaryRepr):
 def get_non_unitary_matrix_repr(num_wires, num_layers, cnot_error_probs, reset_error_probs, measurement_error_probs):
     """
     Calculates the non-unitary matrix representation of a circuit by density matrix simulation.
-    :param circuit: The circuit.
+    :param num_wires: The number of wires in the circuit.
+    :param num_layers: The number of layers in the circuit.
+    :param cnot_error_probs: The probabilities of CNOT errors.
+    :param reset_error_probs: The probabilities of reset errors.
+    :param measurement_error_probs: The probabilities of measurement errors.
     :return: The non-unitary matrix representation of the circuit.
     """
-    get_circuit_matrix_repr(
+
+    def unitary_evolution_method(op, repr):
+        return repr.apply_unitary_method(op)
+
+    def single_error_method(error_probs, targets, num_wires, repr):
+        return repr.single_error_application(error_probs, targets, num_wires)
+
+    def two_qubit_error_method(error_probs, targets, num_wires, repr):
+        return repr.two_qubit_error_application(error_probs, targets, num_wires)
+
+
+    repr = get_circuit_matrix_repr(
         num_wires,
         num_layers,
         cnot_error_probs,
         reset_error_probs,
         measurement_error_probs,
-        method=np.matmul,
-        initial=None,
-        error_method=draw_pauli_error,
-        two_qubit_error_method=draw_pauli_error_string
+        method=unitary_evolution_method,
+        initial=LaplacianMatrices(),
+        error_method=single_error_method,
+        two_qubit_error_method=two_qubit_error_method
     )
+
+    return repr
