@@ -106,7 +106,7 @@ def draw_pauli_error_string(pauli_probs, target_size):
             return index_to_string(i, target_size)
 
 
-def apply_two_qubit_errors(errors):
+def apply_two_qubit_errors(errors, repr):
     """
     Applies two-qubit errors as two single qubit operators.
     :param error_one: The first error, with its dim corrected.
