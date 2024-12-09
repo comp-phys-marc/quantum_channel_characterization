@@ -72,47 +72,21 @@ def correct_gate_dimensionality(gate, targets, num_qubits):
         return get_CNOT_matrix(targets[0], targets[1], num_qubits)
 
 
-@profile
-def get_circuit_matrix_repr(
-        num_wires,
-        num_layers,
-        cnot_error_probs,
-        reset_error_probs,
-        measurement_error_probs,
-        method=np.matmul,
-        initial=None
-    ):
+def draw_pauli_error(pauli_probs, target_size):
     """
-    Constructs the matrix representation of a circuit with errors included as randomly drawn Pauli.
-    Can construct the Laplacian or the unitary representation depending on the method provided.
-    :param num_wires: The number of wires in the circuit.
-    :param num_layers: The number of layers in the circuit.
-    :param cnot_error_probs: The probabilities of CNOT errors.
-    :param reset_error_probs: The probabilities of reset errors.
-    :param measurement_error_probs: The probabilities of measurement errors.
-    :return: The matrix representation of the circuit.
+    Given probabilities of Pauli errors, draws a random Pauli.
+    :param pauli_probs: The probabilities of Pauli errors.
+    :param target_size: The number of target qubits.
+    :return: The Pauli matrix drawn.
     """
-    if initial is None:
-        repr = np.eye(2 ** num_wires)
-    else:
-        repr = initial
-    for qubit in range(num_wires):
-        reset_error = correct_gate_dimensionality(draw_pauli_error(reset_error_probs, 1),
-                                                  [qubit], num_wires)
-        repr = method(reset_error, repr)
+    rand = random.uniform(0, 1)
 
-    for layer in range(num_layers):
-        for wire in range(num_wires):
-            flip = method(correct_gate_dimensionality(PAULI_X, [wire], num_wires), repr)
-            repr = method(flip, repr)
-        repr = apply_CNOT_layer(repr, num_wires, layer % 2, cnot_error_probs, method)
-
-    for qubit in range(num_wires):
-        meas_error = correct_gate_dimensionality(draw_pauli_error(measurement_error_probs, 1),
-                                                  [qubit], num_wires)
-        repr = method(meas_error, repr)
-
-    return repr
+    for i in range(len(pauli_probs)):
+        sum = 0
+        for j in range(i + 1):
+            sum += pauli_probs[j]
+        if rand < sum:
+            return index_to_error_operator(i, target_size)
 
 
 def draw_pauli_error_string(pauli_probs, target_size):
@@ -132,24 +106,80 @@ def draw_pauli_error_string(pauli_probs, target_size):
             return index_to_string(i, target_size)
 
 
-def draw_pauli_error(pauli_probs, target_size):
+def apply_two_qubit_errors(errors):
     """
-    Given probabilities of Pauli errors, draws a random Pauli.
-    :param pauli_probs: The probabilities of Pauli errors.
-    :param target_size: The number of target qubits.
-    :return: The Pauli matrix drawn.
+    Applies two-qubit errors as two single qubit operators.
+    :param error_one: The first error, with its dim corrected.
+    :param error_two: The second error, with its dim corrected.
+    :return: The matrix repr of the circuit.
     """
-    rand = random.uniform(0, 1)
-
-    for i in range(len(pauli_probs)):
-        sum = 0
-        for j in range(i + 1):
-            sum += pauli_probs[j]
-        if rand < sum:
-            return index_to_error_operator(i, target_size)
+    repr = np.matmul(errors[0], repr)
+    repr = np.matmul(errors[1], repr)
+    return repr
 
 
-def apply_CNOT_layer(repr, num_wires, layer_mod_2, cnot_error_probs, method):
+@profile
+def get_circuit_matrix_repr(
+        num_wires,
+        num_layers,
+        cnot_error_probs,
+        reset_error_probs,
+        measurement_error_probs,
+        method=np.matmul,
+        initial=None,
+        error_method=draw_pauli_error,
+        apply_error_method=np.matmul,
+        two_qubit_error_method=draw_pauli_error_string,
+        apply_two_qubit_error_method=apply_two_qubit_errors
+    ):
+    """
+    Constructs the matrix representation of a circuit with errors included as randomly drawn Pauli.
+    Can construct the Laplacian or the unitary representation depending on the method provided.
+    :param num_wires: The number of wires in the circuit.
+    :param num_layers: The number of layers in the circuit.
+    :param cnot_error_probs: The probabilities of CNOT errors.
+    :param reset_error_probs: The probabilities of reset errors.
+    :param measurement_error_probs: The probabilities of measurement errors.
+    :param initial: The initial matrix repr.
+    :param method: The method to use to apply the gates.
+    :param apply_error_method: The method to use in order to apply errors.
+    :param error_method: The method to use in order to choose singel qubit errors.
+    :param two_qubit_error_method: The method to use in order to choose two qubit errors.
+    :return: The matrix representation of the circuit.
+    """
+    if initial is None:
+        repr = np.eye(2 ** num_wires)
+    else:
+        repr = initial
+    for qubit in range(num_wires):
+        reset_error = correct_gate_dimensionality(error_method(reset_error_probs, 1),
+                                                  [qubit], num_wires)
+        repr = apply_error_method(reset_error, repr)
+
+    for layer in range(num_layers):
+        for wire in range(num_wires):
+            flip = correct_gate_dimensionality(PAULI_X, [wire], num_wires)
+            repr = method(flip, repr)
+
+        repr = apply_CNOT_layer(
+            repr,
+            num_wires,
+            layer % 2,
+            cnot_error_probs,
+            method,
+            two_qubit_error_method,
+            apply_two_qubit_error_method
+        )
+
+    for qubit in range(num_wires):
+        meas_error = correct_gate_dimensionality(error_method(measurement_error_probs, 1),
+                                                  [qubit], num_wires)
+        repr = apply_error_method(meas_error, repr)
+
+    return repr
+
+
+def apply_CNOT_layer(repr, num_wires, layer_mod_2, cnot_error_probs, method, error_method, apply_error_method):
     """
     Applies the CNOT layer to the matrix representation of the circuit.
     :param circuit: The matrix representation to transform by a CNOT layer.
@@ -157,6 +187,8 @@ def apply_CNOT_layer(repr, num_wires, layer_mod_2, cnot_error_probs, method):
     :param layer_mod_2: Whether this is an even or odd layer.
     :param cnot_error_probs: The probabilities of CNOT errors.
     :param method: The method to use to apply the CNOTs and errors.
+    :param error_method: The method to use in order to choose errors.
+    :param apply_error_method: The method to use in order to apply errors.
     :return: The matrix representation of the circuit with the CNOT layer applied.
     """
     if num_wires % 2 == 0:
@@ -169,10 +201,12 @@ def apply_CNOT_layer(repr, num_wires, layer_mod_2, cnot_error_probs, method):
     for wire in range(layer_mod_2, final_wire, 2):
         repr = method(correct_gate_dimensionality(CNOT, [wire, wire + 1], num_wires), repr)
 
-        pauli_error_str = draw_pauli_error_string(cnot_error_probs, 2)
+        pauli_error_str = error_method(cnot_error_probs, 2)
 
-        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[0]], [wire], num_wires), repr)
-        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[1]], [wire + 1], num_wires), repr)
+        repr = apply_error_method([
+            correct_gate_dimensionality(LOOKUP[pauli_error_str[0]], [wire], num_wires),
+            correct_gate_dimensionality(LOOKUP[pauli_error_str[1]], [wire + 1], num_wires)
+        ], repr)
 
     if wrap_around:
         if num_wires == 2:
@@ -184,10 +218,12 @@ def apply_CNOT_layer(repr, num_wires, layer_mod_2, cnot_error_probs, method):
         else:
             raise NotImplementedError("Only up to 4 qubits supported.")
 
-        pauli_error_str = draw_pauli_error_string(cnot_error_probs, 2)
+        pauli_error_str = error_method(cnot_error_probs, 2)
 
-        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[0]], [num_wires - 1], num_wires), repr)
-        repr = method(correct_gate_dimensionality(LOOKUP[pauli_error_str[1]], [0], num_wires), repr)
+        repr = apply_error_method([
+            correct_gate_dimensionality(LOOKUP[pauli_error_str[0]], [num_wires - 1], num_wires),
+            correct_gate_dimensionality(LOOKUP[pauli_error_str[1]], [0], num_wires)
+        ], repr)
 
     return repr
 
@@ -257,6 +293,7 @@ def laplacian_to_density_matrix(laplacian, beta=1, truncate=None):
             else:
                 expm += mul / sp.math.factorial(p)
         return expm / np.trace(expm)
+
 
 def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qubits, num_layers):
     """
