@@ -3,6 +3,7 @@ import numpy as np
 import math
 from qiskit.quantum_info import Choi
 from pauli_utils import index_to_string, THREE_EIGS, FOUR_EIGS, enumerate_observables
+from jax import numpy as jnp
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -130,19 +131,71 @@ def expectation_matrix_from_counts(dataset="benchmarking", qubits=4, layers=4):
 
     return expectations_matrices
 
+def expectation_matrix_from_counts_from_data(data, qubits):
+    """
+    Builds expectation matrices from counts.
+    :param dataset: The type of dataset to build expectation matrices from.
+    :param qubits: The number of qubits.
+    :param layers: The number of layers in the circuit.
+    :return: The expectation matrices.
+    """
+    expectations_matrices = []
+
+    for k, v in data.items():
+        outcomes_arr = v['outcomes']
+        i = 0
+        expectations = np.array([[0.0 for _ in range(2 ** qubits)] for _ in range(4 ** qubits)])
+        while i < (2 ** qubits) * (4 ** qubits):
+            measurement = outcomes_arr[i]
+            pauli_string = index_to_string(math.floor(i / (2 ** qubits)), qubits)  # TODO: is this how they are ordered? check assumption.
+            counts = measurement['counts']
+            total = 0
+            total_weight = 0
+            for bitstring, times_observed in counts.items():
+                total += bitstring_to_observable_eigenvalue(bitstring, pauli_string) * times_observed
+                total_weight += times_observed
+            expectation = total / total_weight
+            expectations[math.floor(i / (2 ** qubits))][i % (2 ** qubits)] = expectation  # TODO: check order assumption.
+            i += 1
+        expectations_matrices.append(expectations)
+
+    return expectations_matrices
+
 
 if __name__ == '__main__':
-    expectations = expectation_matrix_from_counts()
-    print(expectations)
+    qubits, layers = 4, 4
+    data = json.loads(json.loads(
+        open(f"./data/training_dataset_{qubits}_qubits_{layers}_layers.json", "r").read()),
+                 cls=ComplexDecoder)
+    print("loaded data")
+    expectations = expectation_matrix_from_counts_from_data(data, qubits)
 
-    json_dict = dict()
-    json_dict[0] = {
-        "complex_matrix": [[complex(0.1, 0.2) for i in range(5)] for j in range(5)],
-        "real_matrix": [[0.1 for i in range(5)] for j in range(5)]
-    }
+    probs_list = []
+    for i, value in enumerate(data.values()):
+        probs_to_concat = []
+        for probs_name in ("reset_probs", "cnot_probs", "measurement_probs"):
+            probs_to_concat.append(jnp.array(value[probs_name]))
+        probs_list.append(jnp.concatenate(probs_to_concat))
 
-    dumped = json.dumps(json_dict, cls=NumpyEncoder)
-    loaded = json.loads(dumped, cls=ComplexDecoder)
+    data = {"expectations": expectations, "probs": probs_list}
+    np.save(f"./data/simplified/training_{qubits}_qubits_{layers}_layers.npy", data, allow_pickle=True)
 
-    assert np.array_equal(loaded['0']["complex_matrix"], json_dict[0]["complex_matrix"])
-    assert np.array_equal(loaded['0']["real_matrix"], json_dict[0]["real_matrix"])
+
+
+
+
+    # expectations = expectation_matrix_from_counts()
+    # print(expectations)
+    #
+    # json_dict = dict()
+    # json_dict[0] = {
+    #     "complex_matrix": [[complex(0.1, 0.2) for i in range(5)] for j in range(5)],
+    #     "real_matrix": [[0.1 for i in range(5)] for j in range(5)]
+    # }
+    #
+    # dumped = json.dumps(json_dict, cls=NumpyEncoder)
+    # loaded = json.loads(dumped, cls=ComplexDecoder)
+    #
+    # assert np.array_equal(loaded['0']["complex_matrix"], json_dict[0]["complex_matrix"])
+    # assert np.array_equal(loaded['0']["real_matrix"], json_dict[0]["real_matrix"])
+    # expectations = expectation_matrix_from_counts()
