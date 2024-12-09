@@ -304,15 +304,9 @@ class LaplacianMatrices(NonUnitaryRepr):
 
         new_list = []
         for unitary_system in self.unitary_systems:
-            if len(self.seen_matrices) > 0:
-                index = 0
-                found = False
-                for arr in self.seen_matrices:
-                    if np.allclose(arr, op):
-                        found = True
-                        break
-                    index += 1
-            if len(self.seen_matrices) > 0 and found:
+            hash = hash_array(op)
+            if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
+                index = self.seen_matrices.index(hash)
                 new_unitary_system = self.computed_logms[index] - unitary_system + self.computed_logms_inv[index]
             else:
                 diff = np.subtract(np.eye(2 ** self.num_qubits), op)
@@ -321,14 +315,14 @@ class LaplacianMatrices(NonUnitaryRepr):
                     truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
                                                                                  np.transpose(op)))
                     new_unitary_system = truncated - unitary_system + truncated_inv
-                    self.seen_matrices.append(op)
+                    self.seen_matrices.append(hash_array(op))
                     self.computed_logms.append(truncated)
                     self.computed_logms_inv.append(truncated_inv)
                 else:
                     lgm = sp.linalg.logm(op)
                     lgm_inv = sp.linalg.logm(np.transpose(op))
                     new_unitary_system = lgm - unitary_system + lgm_inv
-                    self.seen_matrices.append(op)
+                    self.seen_matrices.append(hash_array(op))
                     self.computed_logms.append(lgm)
                     self.computed_logms_inv.append(lgm_inv)
             new_list.append(new_unitary_system)
@@ -349,15 +343,9 @@ class LaplacianMatrices(NonUnitaryRepr):
             new_list = []
             for op in ops:
                 for unitary_system in self.unitary_systems:
-                    if len(self.seen_matrices) > 0:
-                        index = 0
-                        found = False
-                        for arr in self.seen_matrices:
-                            if np.allclose(arr, op):
-                                found = True
-                                break
-                            index += 1
-                    if len(self.seen_matrices) > 0 and found:
+                    hash = hash_array(op)
+                    if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
+                        index = self.seen_matrices.index(hash)
                         new_unitary_system = self.computed_logms[index] - unitary_system + self.computed_logms_inv[
                             index]
                     else:
@@ -367,20 +355,30 @@ class LaplacianMatrices(NonUnitaryRepr):
                             truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
                                                                                  np.transpose(op)))
                             new_unitary_system = truncated - unitary_system + truncated_inv
-                            self.seen_matrices.append(op)
+                            self.seen_matrices.append(hash_array(op))
                             self.computed_logms.append(truncated)
                             self.computed_logms_inv.append(truncated_inv)
                         else:
                             lgm = sp.linalg.logm(op)
                             lgm_inv = sp.linalg.logm(np.transpose(op))
                             new_unitary_system = lgm - unitary_system + lgm_inv
-                            self.seen_matrices.append(op)
+                            self.seen_matrices.append(hash_array(op))
                             self.computed_logms.append(lgm)
                             self.computed_logms_inv.append(lgm_inv)
                     new_list.append(new_unitary_system)
             self.unitary_systems = new_list
             if sum:
                 self.sum()
+
+
+def hash_array(arr):
+    hash = ''
+    for elem in arr:
+        if not isinstance(elem, np.ndarray) and not isinstance(elem, list):
+            hash += str(elem)
+        else:
+            hash += hash_array(elem)
+    return hash
 
 
 @profile
