@@ -285,6 +285,15 @@ def apply_unitary(unitary, laplacian):
     return sp.linalg.logm(unitary) - laplacian + sp.linalg.logm(np.transpose(unitary))
 
 
+def density_matrix_to_laplacian(density_matrix, beta=1):
+    """
+    Converts a density matrix to a Laplacian matrix.
+    :param density_matrix: The density matrix to convert.
+    :return: The laplacian.
+    """
+    return sp.linalg.logm(density_matrix) / -beta
+
+
 def laplacian_to_density_matrix(laplacian, beta=1, truncate=None):
     """
     Converts a Laplacian matrix to a density matrix.

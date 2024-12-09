@@ -79,3 +79,7 @@ def index_to_error_operator(i, target_size):
             error = np.kron(np.eye(2 ** target_size), error)
 
     return error
+
+
+if __name__ == "__main__":
+    pass

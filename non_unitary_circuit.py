@@ -2,7 +2,8 @@ import numpy as np
 import scipy as sp
 
 from circuit_qiskit import get_random_probs
-from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
+from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality, laplacian_to_density_matrix, \
+    density_matrix_to_laplacian
 from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
 from qiskit.quantum_info import Kraus, Choi
 
@@ -226,6 +227,25 @@ class LaplacianMatrices(NonUnitaryRepr):
         :param num_qubits: The number of qubits in the system.
         """
         super().__init__(unitary_systems, num_qubits)
+
+    def sum(self, truncate=None):
+        """
+        Sums the Laplacians by converting to density matrix form and converting back since
+        there is no nice way to calculate the sum of exponentials with different exponents.
+        :param truncate: How much to truncate the matrix exponentials.
+        :return: None
+        """
+        sum = None
+        for unitary_system in self.unitary_systems:
+            density_matrix = laplacian_to_density_matrix(unitary_system, truncate=truncate)
+            if sum is None:
+                sum = density_matrix
+            else:
+                sum += density_matrix
+
+        # convert back to Laplacian
+        laplacian = density_matrix_to_laplacian(sum)
+        self.unitary_systems = [laplacian]
 
     def apply_unitary_method(self, op, sum=False, truncate=None):
         """
