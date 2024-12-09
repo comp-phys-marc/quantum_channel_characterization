@@ -1,11 +1,10 @@
 import numpy as np
 import scipy as sp
 
-from channels import kraus_channel_as_super_operator
 from circuit_qiskit import get_random_probs
 from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
 from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
-from qiskit.quantum_info import Kraus, Choi, SuperOp
+from qiskit.quantum_info import Kraus, Choi
 
 
 class NonUnitaryRepr:
@@ -339,8 +338,8 @@ if __name__ == "__main__":
     measurement_probs = get_random_probs(4)
 
     repr = get_non_unitary_matrix_repr(
-        4,
-        4,
+        3,
+        2,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -349,3 +348,4 @@ if __name__ == "__main__":
 
     kraus = Kraus(repr.unitary_systems)
     choi = Choi(kraus)
+    print(choi)

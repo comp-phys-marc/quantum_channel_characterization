@@ -48,27 +48,27 @@ if __name__ == '__main__':
 
             json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
             f.close()
-
-    print("Benchmark data generation")
-    for m in range(2, 5):
-        print(f"Qubits: {m}")
-        for n in range(2, 5):
-            print(f"Layers: {n}")
-            f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
-
-            json_dict = generate_dataset(m, n, 100)
-
-            json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
-            f.close()
-
-    print("Training data generation")
-    for m in range(2, 5):
-        print(f"Qubits: {m}")
-        for n in range(2, 5):
-            print(f"Layers: {n}")
-            f = open(f"data/training_dataset_{m}_qubits_{n}_layers.json", "w")
-
-            json_dict = generate_dataset(m, n, 100)
-
-            json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
-            f.close()
+    #
+    # print("Benchmark data generation")
+    # for m in range(2, 5):
+    #     print(f"Qubits: {m}")
+    #     for n in range(2, 5):
+    #         print(f"Layers: {n}")
+    #         f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
+    #
+    #         json_dict = generate_dataset(m, n, 100)
+    #
+    #         json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
+    #         f.close()
+    #
+    # print("Training data generation")
+    # for m in range(2, 5):
+    #     print(f"Qubits: {m}")
+    #     for n in range(2, 5):
+    #         print(f"Layers: {n}")
+    #         f = open(f"data/training_dataset_{m}_qubits_{n}_layers.json", "w")
+    #
+    #         json_dict = generate_dataset(m, n, 100)
+    #
+    #         json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
+    #         f.close()
