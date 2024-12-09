@@ -1,8 +1,11 @@
 import numpy as np
 import scipy as sp
+
+from channels import kraus_channel_as_super_operator
+from circuit_qiskit import get_random_probs
 from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
 from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
-
+from qiskit.quantum_info import Kraus, Choi, SuperOp
 
 class NonUnitaryRepr:
     """
@@ -22,9 +25,9 @@ class NonUnitaryRepr:
             assert isinstance(unitary_systems, list)
             self.unitary_systems = unitary_systems
         else:
-            self.unitary_systems = [np.array([[0 for j in range(0, i)] + [1 / (2 ** num_qubits)] +
-                                        [0 for k in range(i + 1, 2 ** num_qubits)]
-                                        for i in range(2 ** num_qubits)])]
+            self.unitary_systems = [np.array([[0 for j in range(0, i)] + [1] +
+                                              [0 for k in range(i + 1, 2 ** num_qubits)]
+                                              for i in range(2 ** num_qubits)])]
 
     def sum(self):
         """
@@ -107,7 +110,7 @@ class DensityMatrices(NonUnitaryRepr):
         """
         super().__init__(unitary_systems, num_qubits)
 
-    def apply_unitary_method(self, op, sum=True):
+    def apply_unitary_method(self, op, sum=False):
         """
         Applies a unitary operator to the representation of the non-unitary circuit.
         :param op: The unitary operator to apply.
@@ -122,7 +125,7 @@ class DensityMatrices(NonUnitaryRepr):
         if sum:
             self.sum()
 
-    def apply_non_unitary_method(self, ops, sum=True):
+    def apply_non_unitary_method(self, ops, sum=False):
         """
         Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
         Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
@@ -135,6 +138,57 @@ class DensityMatrices(NonUnitaryRepr):
         for op in ops:
             for unitary_system in self.unitary_systems:
                 new_unitary_system = op @ unitary_system @ np.transpose(op)
+                new_list.append(new_unitary_system)
+        self.unitary_systems = new_list
+        if sum:
+            self.sum()
+
+
+class Tape(NonUnitaryRepr):
+    """
+    Builds the Kraus representation of the circuit by recording the operations performed.
+    """
+
+    def __init__(self, unitary_systems=None, num_qubits=4):
+        """
+        Initializes a Tape object.
+        :param unitary_systems: Subsystems which evolve unitarily are ignored by Tape.
+        :param num_qubits: The number of qubits in the system.
+        """
+        super().__init__(unitary_systems, num_qubits)
+        self.num_qubits = num_qubits
+        self.unitary_systems = [np.array([[0 for j in range(0, i)] + [1] +
+                                          [0 for k in range(i + 1, 2 ** num_qubits)]
+                                          for i in range(2 ** num_qubits)])]
+
+    def apply_unitary_method(self, op, sum=False):
+        """
+        Applies a unitary operator.
+        :param op: The unitary operator to apply.
+        param sum: Whether to sum the unitary systems after evaluation.
+        :return: None
+        """
+        new_list = []
+        for unitary_system in self.unitary_systems:
+            new_unitary_system = op @ unitary_system
+            new_list.append(new_unitary_system)
+        self.unitary_systems = new_list
+        if sum:
+            self.sum()
+
+    def apply_non_unitary_method(self, ops, sum=False):
+        """
+        Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
+        Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
+        :param ops: The non-unitary operators to apply.
+        :param repr: The matrix representation of the state.
+        :param sum: Whether to sum the unitary systems after evaluation.
+        :return: None
+        """
+        new_list = []
+        for op in ops:
+            for unitary_system in self.unitary_systems:
+                new_unitary_system = op @ unitary_system
                 new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:
@@ -173,7 +227,7 @@ class LaplacianMatrices(NonUnitaryRepr):
         """
         super().__init__(unitary_systems, num_qubits)
 
-    def apply_unitary_method(self, op, sum=True, truncate=None):
+    def apply_unitary_method(self, op, sum=False, truncate=None):
         """
         Applies a unitary operator to the representation of the non-unitary circuit.
         :param op: The unitary operator to apply.
@@ -197,7 +251,7 @@ class LaplacianMatrices(NonUnitaryRepr):
         if sum:
             self.sum()
 
-    def apply_non_unitary_method(self, ops, sum=True, truncate=None):
+    def apply_non_unitary_method(self, ops, sum=False, truncate=None):
             """
             Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
             Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
@@ -224,7 +278,14 @@ class LaplacianMatrices(NonUnitaryRepr):
                 self.sum()
 
 
-def get_non_unitary_matrix_repr(num_wires, num_layers, cnot_error_probs, reset_error_probs, measurement_error_probs):
+def get_non_unitary_matrix_repr(
+        num_wires,
+        num_layers,
+        cnot_error_probs,
+        reset_error_probs,
+        measurement_error_probs,
+        type="density_matrix"
+    ):
     """
     Calculates the non-unitary matrix representation of a circuit by density matrix simulation.
     :param num_wires: The number of wires in the circuit.
@@ -232,6 +293,7 @@ def get_non_unitary_matrix_repr(num_wires, num_layers, cnot_error_probs, reset_e
     :param cnot_error_probs: The probabilities of CNOT errors.
     :param reset_error_probs: The probabilities of reset errors.
     :param measurement_error_probs: The probabilities of measurement errors.
+    :param type: The type of representation.
     :return: The non-unitary matrix representation of the circuit.
     """
 
@@ -244,6 +306,12 @@ def get_non_unitary_matrix_repr(num_wires, num_layers, cnot_error_probs, reset_e
     def two_qubit_error_method(error_probs, targets, num_wires, repr):
         return repr.two_qubit_error_application(error_probs, targets, num_wires)
 
+    if type == "density_matrix":
+        initial = DensityMatrices(num_wires)
+    elif type == "laplacian":
+        initial = Laplacian(num_wires)
+    else:
+        initial = Tape(num_wires)
 
     repr = get_circuit_matrix_repr(
         num_wires,
@@ -252,9 +320,28 @@ def get_non_unitary_matrix_repr(num_wires, num_layers, cnot_error_probs, reset_e
         reset_error_probs,
         measurement_error_probs,
         method=unitary_evolution_method,
-        initial=LaplacianMatrices(),
+        initial=initial,
         error_method=single_error_method,
         two_qubit_error_method=two_qubit_error_method
     )
 
     return repr
+
+
+if __name__ == "__main__":
+    # get error probs
+    cnot_probs = get_random_probs(16)
+    reset_probs = get_random_probs(4)
+    measurement_probs = get_random_probs(4)
+
+    repr = get_non_unitary_matrix_repr(
+        4,
+        4,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        type="tape"
+    )
+
+    kraus = Kraus(repr.unitary_systems)
+    choi = Choi(kraus)
