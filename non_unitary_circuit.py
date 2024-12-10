@@ -111,6 +111,7 @@ class DensityMatrices(NonUnitaryRepr):
         :param num_qubits: The number of qubits in the system.
         """
         super().__init__(unitary_systems, num_qubits)
+        self.seen_matrices = {}
 
     def apply_unitary_method(self, op, sum=False):
         """
@@ -123,6 +124,13 @@ class DensityMatrices(NonUnitaryRepr):
         for unitary_system in self.unitary_systems:
             new_unitary_system = op @ unitary_system @ np.transpose(op)
             new_list.append(new_unitary_system)
+            if hash_array(op) not in self.seen_matrices:
+                self.seen_matrices[hash_array(op)] = {
+                    'orig': op,
+                    'applied_to': [unitary_system]
+                }
+            else:
+                self.seen_matrices[hash_array(op)]['applied_to'].append(unitary_system)
         self.unitary_systems = new_list
         if sum:
             self.sum()
@@ -141,6 +149,13 @@ class DensityMatrices(NonUnitaryRepr):
             for unitary_system in self.unitary_systems:
                 new_unitary_system = op @ unitary_system @ np.transpose(op)
                 new_list.append(new_unitary_system)
+                if hash_array(op) not in self.seen_matrices:
+                    self.seen_matrices[hash_array(op)] = {
+                        'orig': op,
+                        'applied_to': [unitary_system]
+                    }
+                else:
+                    self.seen_matrices[hash_array(op)]['applied_to'].append(unitary_system)
         self.unitary_systems = new_list
         if sum:
             self.sum()
@@ -306,6 +321,7 @@ class LaplacianMatrices(NonUnitaryRepr):
             if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
                 new_unitary_system = (self.seen_matrices[hash]['logm'] -
                                       unitary_system + self.seen_matrices[hash]['logm_inv'])
+                self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
             else:
                 diff = np.subtract(np.eye(2 ** self.num_qubits), op)
                 if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
@@ -316,7 +332,8 @@ class LaplacianMatrices(NonUnitaryRepr):
                     self.seen_matrices[hash_array(op)] = {
                         'logm': truncated,
                         'logm_inv': truncated_inv,
-                        'orig': op
+                        'orig': op,
+                        'added_to': [unitary_system]
                     }
                 else:
                     lgm = sp.linalg.logm(op)
@@ -325,7 +342,8 @@ class LaplacianMatrices(NonUnitaryRepr):
                     self.seen_matrices[hash_array(op)] = {
                         'logm': lgm,
                         'logm_inv': lgm_inv,
-                        'orig': op
+                        'orig': op,
+                        'added_to': [unitary_system]
                     }
             new_list.append(new_unitary_system)
         self.unitary_systems = new_list
@@ -349,6 +367,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                     if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
                         new_unitary_system = (self.seen_matrices[hash]['logm'] -
                                               unitary_system + self.seen_matrices[hash]['logm_inv'])
+                        self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
                     else:
                         diff = np.subtract(np.eye(2 ** self.num_qubits), op)
                         if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
@@ -359,7 +378,8 @@ class LaplacianMatrices(NonUnitaryRepr):
                             self.seen_matrices[hash_array(op)] = {
                                 'logm': truncated,
                                 'logm_inv': truncated_inv,
-                                'orig': op
+                                'orig': op,
+                                'added_to': [unitary_system]
                             }
                         else:
                             lgm = sp.linalg.logm(op)
@@ -368,7 +388,8 @@ class LaplacianMatrices(NonUnitaryRepr):
                             self.seen_matrices[hash_array(op)] = {
                                 'logm': lgm,
                                 'logm_inv': lgm_inv,
-                                'orig': op
+                                'orig': op,
+                                'added_to': [unitary_system]
                             }
                     new_list.append(new_unitary_system)
             self.unitary_systems = new_list
@@ -376,11 +397,17 @@ class LaplacianMatrices(NonUnitaryRepr):
                 self.sum()
 
 
-def hash_array(arr):
+def hash_array(arr, precision=3):
     hash = ''
     for elem in arr:
         if not isinstance(elem, np.ndarray) and not isinstance(elem, list):
-            hash += str(elem)
+            hash += str(elem).split('.')[0] + '.'
+            if len(str(elem).split('.')) > 1:
+                dec = str(elem).split('.')[1]
+                i = 0
+                while i < len(dec) and i < precision:
+                    hash += dec[i]
+                    i += 1
         else:
             hash += hash_array(elem)
     return hash
@@ -473,7 +500,7 @@ if __name__ == "__main__":
     print("Evolving density matrix")
 
     # simulate evolution using density matrix approach
-    get_non_unitary_matrix_repr(
+    density_matrix = get_non_unitary_matrix_repr(
         2,
         2,
         cnot_probs,
@@ -487,7 +514,7 @@ if __name__ == "__main__":
     # simulate evolution using graph Laplacian approach
     repr = get_non_unitary_matrix_repr(
         2,
-        4,
+        2,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -495,6 +522,27 @@ if __name__ == "__main__":
     )
 
     # direct test of advantage
+
+    # comparison of entire circuit execution ab-initio
+    @profile
+    def re_execute_density_matrix_circuit(density_matrix):
+        for k, v in density_matrix.seen_matrices.items():
+            for target in v['applied_to']:
+                res = np.matmul(np.matmul(v['orig'], target), v['orig'])
+
+    @profile
+    def re_execute_laplacian_circuit(laplacian):
+        for k, v in laplacian.seen_matrices.items():
+            for target in v['added_to']:
+                res = v['logm'] + -target + v['logm_inv']
+
+
+    print("Re-playing density matrix evolution")
+    re_execute_density_matrix_circuit(density_matrix)
+    print("Re-playing Laplacian evolution")
+    re_execute_laplacian_circuit(repr)
+
+    # get data on each gate
     @profile
     def apply_orig(orig, target):
         orig @ target @ orig
