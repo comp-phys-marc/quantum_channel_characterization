@@ -126,10 +126,11 @@ def expectation_matrix_from_counts_from_data(data, qubits):
     for k, v in data.items():
         outcomes_arr = v['outcomes']
         i = 0
-        expectations = np.array([[0.0 for _ in range(2 ** qubits)] for _ in range(4 ** qubits)])
-        while i < (2 ** qubits) * (4 ** qubits):
+        # expectations = np.array([[0.0 for _ in range(2 ** qubits)] for _ in range(4 ** qubits)])
+        expectations = np.array([[0.0 for _ in range(81)] for _ in range(4 ** qubits)])
+        while i < 81 * (4 ** qubits):
             measurement = outcomes_arr[i]
-            pauli_string = index_to_string(math.floor(i / (2 ** qubits)), qubits)  # TODO: is this how they are ordered? check assumption.
+            pauli_string = index_to_string(math.floor(i / (2 ** qubits)), qubits)
             counts = measurement['counts']
             total = 0
             total_weight = 0
@@ -137,7 +138,8 @@ def expectation_matrix_from_counts_from_data(data, qubits):
                 total += bitstring_to_observable_eigenvalue(bitstring, pauli_string) * times_observed
                 total_weight += times_observed
             expectation = total / total_weight
-            expectations[math.floor(i / (2 ** qubits))][i % (2 ** qubits)] = expectation  # TODO: check order assumption.
+            expectations[math.floor(i / 81)][i % (2 ** qubits)] = expectation
+            # expectations[math.floor(i / (2 ** qubits))][i % (2 ** qubits)] = expectation
             i += 1
         expectations_matrices.append(expectations)
 
@@ -145,11 +147,15 @@ def expectation_matrix_from_counts_from_data(data, qubits):
 
 
 if __name__ == '__main__':
-    qubits, layers = 4, 4
+    qubits, layers = 4, 2
+    type_of_data = "benchmarking"
+
     data = json.loads(json.loads(
-        open(f"./data/training_dataset_{qubits}_qubits_{layers}_layers.json", "r").read()),
+        open(f"./data/{type_of_data}_dataset_{qubits}_qubits_{layers}_layers.json", "r").read()),
                  cls=ComplexDecoder)
     print("loaded data")
+
+
     expectations = expectation_matrix_from_counts_from_data(data, qubits)
 
     probs_list = []
@@ -160,7 +166,7 @@ if __name__ == '__main__':
         probs_list.append(jnp.concatenate(probs_to_concat))
 
     data = {"expectations": expectations, "probs": probs_list}
-    np.save(f"./data/simplified/training_{qubits}_qubits_{layers}_layers.npy", data, allow_pickle=True)
+    np.save(f"./data/simplified/{type_of_data}_{qubits}_qubits_{layers}_layers.npy", data, allow_pickle=True)
 
 
 

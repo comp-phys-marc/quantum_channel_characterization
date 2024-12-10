@@ -5,12 +5,13 @@ import jax
 import jax.numpy as jnp
 import jax.random as jrng
 import optax
+from matplotlib import pyplot as plt
 
 from channels import compare_choi_matrices
 import json
 
 NUM_PROBS = 24
-NUM_INPUT_CUTS = 8
+NUM_INPUT_CUTS = 81
 HIDDEN_WIDTH = 16
 HIDDEN_LAYERS = 1 # TODO change these values
 NUM_POLL_OUTPUT = 3
@@ -18,6 +19,9 @@ NUM_POLL_OUTPUT = 3
 
 num_wires = 4
 num_inputs = 4 ** num_wires
+total_inputs = 4 ** num_wires * NUM_INPUT_CUTS
+
+desired_input_shape = NUM_INPUT_CUTS, num_inputs, 1
 
 
 
@@ -30,7 +34,7 @@ def turn_to_probs(raw_data):
 
 
 def model_for_probs(input, input_weights, hidden_weights, output_weights):
-    reshaped_input = jnp.reshape(input[:,0], (NUM_INPUT_CUTS, int(num_inputs/NUM_INPUT_CUTS)))
+    reshaped_input = jnp.reshape(input, desired_input_shape)
     hidden_layer_1 = input_weights @ reshaped_input
     hidden_layer_1 = jnp.apply_along_axis(jax.nn.relu, 0, hidden_layer_1)
 
@@ -91,7 +95,7 @@ def get_input_weights_from_list(num_inputs_list):
 
 def get_hidden_weights():
     # List of matrices representing all to all weights for hidden layer
-    hidden_width_1 = NUM_POLL_OUTPUT * NUM_POLL_OUTPUT
+    hidden_width_1 = NUM_INPUT_CUTS * NUM_POLL_OUTPUT
     input_sizes = [hidden_width_1] + ([HIDDEN_WIDTH] * (HIDDEN_LAYERS - 1))
     return  [jrng.uniform(key, (HIDDEN_WIDTH, input_size)) for input_size in input_sizes]
 
@@ -101,21 +105,17 @@ def get_output_weights():
     return jrng.uniform(key, required_shape)
 
 
-
-def get_probs_from_network(params, input_expectations):
-    return
-
 @functools.partial(jax.vmap, in_axes=(None, 0, 0))
 def find_loss(params, input_expectations, expected_probs):
     # The difference between expected probs and generated probs
     probs_batch = model_for_probs(input_expectations, *params)
-    exp_reset_probs = turn_to_probs(expected_probs[:, :4])
-    exp_cnot_probs = turn_to_probs(expected_probs[:, 4:20])
-    exp_meas_probs = turn_to_probs(expected_probs[:, 20:24])
+    exp_reset_probs = turn_to_probs(expected_probs[:4])
+    exp_cnot_probs = turn_to_probs(expected_probs[4:20])
+    exp_meas_probs = turn_to_probs(expected_probs[20:24])
 
     loss = 0
     for i, probs in enumerate((exp_reset_probs,exp_cnot_probs, exp_meas_probs)):
-        loss += optax.l2_loss(probs_batch[i], probs)/3
+        loss +=jnp.sqrt(jnp.sum((probs_batch[i] - probs)**2))/(len(probs_batch)*3)
     return loss
 
 
@@ -125,7 +125,7 @@ def batch_loss(params, input_expectations, expected_probs):
 
 def train_model(input_dataset, expected_dataset, batch_size, num_batches, initial_learing_rate=1e-2): # Note, could pull 1 choi at a time
     # Trains the model
-    W_input = get_input_weights(int(num_inputs/NUM_INPUT_CUTS)) # should be constant for now
+    W_input = get_input_weights(num_inputs) # should be constant for now
     W_hidden = get_hidden_weights()
     W_output = get_output_weights()
     params = W_input, W_hidden, W_output
@@ -147,18 +147,25 @@ def train_model(input_dataset, expected_dataset, batch_size, num_batches, initia
         params = optax.apply_updates(params, updates)
 
     end = time()
-    print(end - start)
+    print("Time to train: ", end - start, "s")
 
+    params_dict = {"W_input": params[0], "W_hidden": params[1], "W_output": params[2]}
     qubits, layers = 4, 4
-    jnp.save(f"data/params_{qubits}_qubits_{layers}_layers.npy", params)
+    jnp.save(f"data/params_{qubits}_qubits_{layers}_layers.npy", params_dict)
     return  loss_history
 
 
 if __name__ == "__main__":
     # get error probs
-    data = jnp.load("./data/simplified/training_4_qubits_4_layers.npy", allow_pickle = True).item()
+    data = jnp.load("data/simplified/training_4_qubits_4_layers.npy", allow_pickle = True).item()
 
-    train_model(data["expectations"], data["probs"], 10, 50)
+    test_data = jnp.load("data/simplified/training_4_qubits_4_layers.npy", allow_pickle = True).item()
+
+    loss_hist = train_model(data["expectations"], data["probs"], 50, 5000)
+
+    plt.plot(loss_hist)
+    plt.show()
+    plt.savefig("loss_history.jpg")
 
     # input_dataset = []  # TODO
     # expectation_matrix_from_counts()
