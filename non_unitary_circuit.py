@@ -213,9 +213,9 @@ def truncated_logm(truncate, diff):
             else:
                 mul = np.matmul(diff, mul)
         if logm is None:
-            logm = ((-1) ** (k + 2)) * (mul / (k + 1))
+            logm = -mul / (k + 1)
         else:
-            logm += ((-1) ** (k + 2)) * (mul / (k + 1))
+            logm -= mul / (k + 1)
     return logm
 
 
