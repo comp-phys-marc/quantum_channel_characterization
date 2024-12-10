@@ -482,27 +482,27 @@ if __name__ == "__main__":
     reset_probs = get_random_probs(4)
     measurement_probs = get_random_probs(4)
 
-    print("Building Choi matrix")
-
-    # get Choi matrix
-    repr = get_non_unitary_matrix_repr(
-        2,
-        2,
-        cnot_probs,
-        reset_probs,
-        measurement_probs,
-        type="tape"
-    )
-
-    kraus = Kraus(repr.unitary_systems)
-    choi = Choi(kraus)
+    # print("Building Choi matrix")
+    #
+    # # get Choi matrix
+    # repr = get_non_unitary_matrix_repr(
+    #     2,
+    #     2,
+    #     cnot_probs,
+    #     reset_probs,
+    #     measurement_probs,
+    #     type="tape"
+    # )
+    #
+    # kraus = Kraus(repr.unitary_systems)
+    # choi = Choi(kraus)
 
     print("Evolving density matrix")
 
     # simulate evolution using density matrix approach
     density_matrix = get_non_unitary_matrix_repr(
         2,
-        2,
+        4,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -514,7 +514,7 @@ if __name__ == "__main__":
     # simulate evolution using graph Laplacian approach
     repr = get_non_unitary_matrix_repr(
         2,
-        2,
+        4,
         cnot_probs,
         reset_probs,
         measurement_probs,
