@@ -455,7 +455,7 @@ if __name__ == "__main__":
     # get Choi matrix
     repr = get_non_unitary_matrix_repr(
         3,
-        2,
+        3,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -470,7 +470,7 @@ if __name__ == "__main__":
     # simulate evolution using density matrix approach
     get_non_unitary_matrix_repr(
         3,
-        2,
+        3,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -482,7 +482,7 @@ if __name__ == "__main__":
     # simulate evolution using graph Laplacian approach
     get_non_unitary_matrix_repr(
         3,
-        2,
+        3,
         cnot_probs,
         reset_probs,
         measurement_probs,
