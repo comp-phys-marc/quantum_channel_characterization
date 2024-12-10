@@ -316,6 +316,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                     self.seen_matrices[hash_array(op)] = {
                         'logm': truncated,
                         'logm_inv': truncated_inv,
+                        'orig': op
                     }
                 else:
                     lgm = sp.linalg.logm(op)
@@ -324,6 +325,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                     self.seen_matrices[hash_array(op)] = {
                         'logm': lgm,
                         'logm_inv': lgm_inv,
+                        'orig': op
                     }
             new_list.append(new_unitary_system)
         self.unitary_systems = new_list
@@ -357,6 +359,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                             self.seen_matrices[hash_array(op)] = {
                                 'logm': truncated,
                                 'logm_inv': truncated_inv,
+                                'orig': op
                             }
                         else:
                             lgm = sp.linalg.logm(op)
@@ -365,6 +368,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                             self.seen_matrices[hash_array(op)] = {
                                 'logm': lgm,
                                 'logm_inv': lgm_inv,
+                                'orig': op
                             }
                     new_list.append(new_unitary_system)
             self.unitary_systems = new_list
@@ -481,7 +485,7 @@ if __name__ == "__main__":
     print("Evolving graph Laplacian")
 
     # simulate evolution using graph Laplacian approach
-    get_non_unitary_matrix_repr(
+    repr = get_non_unitary_matrix_repr(
         2,
         4,
         cnot_probs,
@@ -489,3 +493,22 @@ if __name__ == "__main__":
         measurement_probs,
         type="laplacian"
     )
+
+    # direct test of advantage
+    @profile
+    def apply_orig(orig, target):
+        orig @ target @ orig
+
+    @profile
+    def apply_logm(logm, target):
+        logm - target + logm
+
+    target = np.eye(2 ** repr.num_qubits)
+    for k, v in repr.seen_matrices.items():
+        orig = v['orig']
+        apply_orig(orig, target)
+
+    target = np.eye(2 ** repr.num_qubits)
+    for k, v in repr.seen_matrices.items():
+        logm = v['logm']
+        apply_logm(logm, target)

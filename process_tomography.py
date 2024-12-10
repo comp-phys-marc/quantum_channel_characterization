@@ -52,32 +52,32 @@ def generate_dataset(n_qubits, depth, n_samples):
 
 
 if __name__ == '__main__':
-    print("Benchmark tomography performance")
-    for m in range(2, 5):
-        print(f"Qubits: {m}")
-        for n in range(2, 5):
-            print(f"Layers: {n}")
-            json_dict = generate_dataset(m, n, 1)
+    # print("Benchmark tomography performance")
+    # for m in range(2, 5):
+    #     print(f"Qubits: {m}")
+    #     for n in range(2, 5):
+    #         print(f"Layers: {n}")
+    #         json_dict = generate_dataset(m, n, 1)
 
 
-    print("Benchmark data generation")
-    for m in range(2, 3):
+    # print("Benchmark data generation")
+    # for m in range(2, 3):
+    #     print(f"Qubits: {m}")
+    #     for n in range(4, 5):
+    #         print(f"Layers: {n}")
+    #         f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
+    #
+    #         json_dict = generate_dataset(m, n, 100)
+    #
+    #         json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
+    #         f.close()
+
+    print("Training data generation")
+    for m in range(4, 5):
         print(f"Qubits: {m}")
         for n in range(4, 5):
             print(f"Layers: {n}")
-            f = open(f"data/benchmarking_dataset_{m}_qubits_{n}_layers.json", "w")
-
-            json_dict = generate_dataset(m, n, 100)
-
-            json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
-            f.close()
-
-    print("Training data generation")
-    for m in range(2, 3):
-        print(f"Qubits: {m}")
-        for n in range(2, 5):
-            print(f"Layers: {n}")
-            f = open(f"data/training_dataset_{m}_qubits_{n}_layers.json", "w")
+            f = open(f"data/additional_training_dataset_{m}_qubits_{n}_layers.json", "w")
 
             json_dict = generate_dataset(m, n, 100)
 
