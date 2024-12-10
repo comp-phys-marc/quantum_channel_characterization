@@ -77,9 +77,9 @@ if __name__ == '__main__':
         print(f"Qubits: {m}")
         for n in range(2, 5):
             print(f"Layers: {n}")
-            f = open(f"data/additional_training_dataset_{m}_qubits_{n}_layers.json", "w")
+            f = open(f"data/two_thousand_training_dataset_{m}_qubits_{n}_layers.json", "w")
 
-            json_dict = generate_dataset(m, n, 500)
+            json_dict = generate_dataset(m, n, 2000)
 
             json.dump(json.dumps(json_dict, cls=NumpyEncoder), f)
             f.close()
