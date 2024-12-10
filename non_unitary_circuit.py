@@ -228,9 +228,7 @@ class LaplacianMatrices(NonUnitaryRepr):
         :param num_qubits: The number of qubits in the system.
         """
         super().__init__(unitary_systems, num_qubits)
-        self.seen_matrices = []
-        self.computed_logms = []
-        self.computed_logms_inv = []
+        self.seen_matrices = {}
 
     def sum(self, truncate=None):
         """
@@ -306,8 +304,8 @@ class LaplacianMatrices(NonUnitaryRepr):
         for unitary_system in self.unitary_systems:
             hash = hash_array(op)
             if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
-                index = self.seen_matrices.index(hash)
-                new_unitary_system = self.computed_logms[index] - unitary_system + self.computed_logms_inv[index]
+                new_unitary_system = (self.seen_matrices[hash]['logm'] -
+                                      unitary_system + self.seen_matrices[hash]['logm_inv'])
             else:
                 diff = np.subtract(np.eye(2 ** self.num_qubits), op)
                 if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
@@ -315,16 +313,18 @@ class LaplacianMatrices(NonUnitaryRepr):
                     truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
                                                                                  np.transpose(op)))
                     new_unitary_system = truncated - unitary_system + truncated_inv
-                    self.seen_matrices.append(hash_array(op))
-                    self.computed_logms.append(truncated)
-                    self.computed_logms_inv.append(truncated_inv)
+                    self.seen_matrices[hash_array(op)] = {
+                        'logm': truncated,
+                        'logm_inv': truncated_inv,
+                    }
                 else:
                     lgm = sp.linalg.logm(op)
                     lgm_inv = sp.linalg.logm(np.transpose(op))
                     new_unitary_system = lgm - unitary_system + lgm_inv
-                    self.seen_matrices.append(hash_array(op))
-                    self.computed_logms.append(lgm)
-                    self.computed_logms_inv.append(lgm_inv)
+                    self.seen_matrices[hash_array(op)] = {
+                        'logm': lgm,
+                        'logm_inv': lgm_inv,
+                    }
             new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:
@@ -345,9 +345,8 @@ class LaplacianMatrices(NonUnitaryRepr):
                 for unitary_system in self.unitary_systems:
                     hash = hash_array(op)
                     if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
-                        index = self.seen_matrices.index(hash)
-                        new_unitary_system = self.computed_logms[index] - unitary_system + self.computed_logms_inv[
-                            index]
+                        new_unitary_system = (self.seen_matrices[hash]['logm'] -
+                                              unitary_system + self.seen_matrices[hash]['logm_inv'])
                     else:
                         diff = np.subtract(np.eye(2 ** self.num_qubits), op)
                         if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
@@ -355,16 +354,18 @@ class LaplacianMatrices(NonUnitaryRepr):
                             truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
                                                                                  np.transpose(op)))
                             new_unitary_system = truncated - unitary_system + truncated_inv
-                            self.seen_matrices.append(hash_array(op))
-                            self.computed_logms.append(truncated)
-                            self.computed_logms_inv.append(truncated_inv)
+                            self.seen_matrices[hash_array(op)] = {
+                                'logm': truncated,
+                                'logm_inv': truncated_inv,
+                            }
                         else:
                             lgm = sp.linalg.logm(op)
                             lgm_inv = sp.linalg.logm(np.transpose(op))
                             new_unitary_system = lgm - unitary_system + lgm_inv
-                            self.seen_matrices.append(hash_array(op))
-                            self.computed_logms.append(lgm)
-                            self.computed_logms_inv.append(lgm_inv)
+                            self.seen_matrices[hash_array(op)] = {
+                                'logm': lgm,
+                                'logm_inv': lgm_inv,
+                            }
                     new_list.append(new_unitary_system)
             self.unitary_systems = new_list
             if sum:
@@ -454,8 +455,8 @@ if __name__ == "__main__":
 
     # get Choi matrix
     repr = get_non_unitary_matrix_repr(
-        3,
-        3,
+        2,
+        2,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -469,8 +470,8 @@ if __name__ == "__main__":
 
     # simulate evolution using density matrix approach
     get_non_unitary_matrix_repr(
-        3,
-        3,
+        2,
+        2,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -481,8 +482,8 @@ if __name__ == "__main__":
 
     # simulate evolution using graph Laplacian approach
     get_non_unitary_matrix_repr(
-        3,
-        3,
+        2,
+        4,
         cnot_probs,
         reset_probs,
         measurement_probs,
