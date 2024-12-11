@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from qiskit.quantum_info import Kraus, Choi
 from tqdm import tqdm
 
+from channels import kraus_channel_as_super_operator, super_operator_to_choi
 from non_unitary_circuit import get_non_unitary_matrix_repr
 
 jax.config.update("jax_enable_x64", True)
@@ -123,15 +124,16 @@ def find_loss_choi(params, input_expectations, expected_choi, dropout_prob):
     probs = jax.vmap(model_for_probs, in_axes=(0, None, None, None, None))(input_expectations, *params, dropout_prob)
     reset_probs, cnot_probs, measurement_probs = probs
     for i in range(len(input_expectations)):
-        kraus = Kraus(get_non_unitary_matrix_repr(
+        repr = get_non_unitary_matrix_repr(
             2,
             2,
             cnot_probs[i],
             reset_probs[i],
             measurement_probs[i],
             type="tape"
-        ).unitary_systems)
-        choi = Choi(kraus).data
+        )
+        super_operator = kraus_channel_as_super_operator(repr.unitary_systems, 2)
+        choi = super_operator_to_choi(super_operator)
         losses.append(jnp.linalg.norm(choi - expected_choi[i], ord='fro'))
     return jnp.array(losses)
 
