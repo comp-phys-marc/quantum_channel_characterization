@@ -42,7 +42,6 @@ def plot_choi(choi_matrix):
     plt.show()
 
 
-@profile
 def get_full_pauli_basis(n):
     """
     Returns the full pauli basis for n qubits.
@@ -82,7 +81,6 @@ def kraus_operator_in_pauli_basis(kraus_operator, num_qubits):
     return paulis
 
 
-@profile
 def super_operator_from_pauli_operator(pauli_operator):
     """
     Constructs a superoperator from a weighted sum of Paulis.
