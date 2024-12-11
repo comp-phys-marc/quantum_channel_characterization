@@ -6,7 +6,6 @@ import jax.numpy as jnp
 import jax.random as jrng
 import optax
 from matplotlib import pyplot as plt
-from qiskit.quantum_info import Kraus, Choi
 from tqdm import tqdm
 
 from channels import kraus_channel_as_super_operator, super_operator_to_choi
