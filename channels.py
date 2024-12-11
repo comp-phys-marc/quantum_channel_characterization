@@ -1,12 +1,12 @@
 import json
 from qiskit_aer import Aer
-from qiskit.quantum_info import SparsePauliOp, Kraus
+from qiskit.quantum_info import Kraus
 from evaluation_utils import profile
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
 from circuit_qiskit import get_circuit
 from data_utils import ComplexDecoder
-from pauli_utils import index_to_string
+from pauli_utils import index_to_string, index_to_pauli_operator
 
 
 def compare_choi_matrices(choi_one, choi_two):
@@ -59,13 +59,27 @@ def get_full_pauli_basis(n):
 
 
 @profile
-def kraus_operator_in_pauli_basis(kraus_operator):
+def kraus_operator_in_pauli_basis(kraus_operator, num_qubits):
     """
     Decomposes an operator into the Pauli basis.
     :param kraus_operator: a single Kraus operator, not the whole channel.
+    :param num_qubits: Number of qubits.
     :return: The Pauli operators and their coefficients.
     """
-    return SparsePauliOp.from_operator(kraus_operator)
+    paulis = []
+    for op in kraus_operator:
+        pauli_ops = []
+        coeffs = []
+        for index in range(4 ** num_qubits):
+            pauli_op = index_to_string(index, num_qubits)
+            coeff = (1 / 2 ** num_qubits) * jnp.trace(jnp.matmul(op, index_to_pauli_operator(index, num_qubits)))
+            pauli_ops.append(pauli_op)
+            coeffs.append(coeff)
+        paulis.append({
+            'paulis': pauli_ops,
+            'coeffs': coeffs
+        })
+    return paulis
 
 
 @profile
@@ -75,32 +89,32 @@ def super_operator_from_pauli_operator(pauli_operator):
     :param pauli_operator: The SparsePauliOp to convert into a superoperator.
     :return: The constructed superoperator.
     """
-    num_qubits = len(pauli_operator.paulis[0])
-    coeffs = pauli_operator.coeffs
+    num_qubits = len(pauli_operator['paulis'][0])
+    coeffs = pauli_operator['coeffs']
     basis = get_full_pauli_basis(num_qubits)  # TODO: implement inverse lookup so don't have to gen full basis
     super_operator = [[0 for r in range(len(basis))] for s in range(len(basis))]
     for i in range(len(coeffs)):
-        m = basis.index(str(pauli_operator.paulis[i]))
+        m = basis.index(str(pauli_operator['paulis'][i]))
         for j in range(len(coeffs)):
-            n = basis.index(str(pauli_operator.paulis[j]))
+            n = basis.index(str(pauli_operator['paulis'][j]))
             super_operator[m][n] = coeffs[i] * jnp.conjugate(coeffs[j])
     return jnp.array(super_operator)
 
 
 @profile
-def kraus_channel_as_super_operator(kraus_channel):
+def kraus_channel_as_super_operator(kraus_channel, num_qubits):
     """
     Transforms a Kraus channel into a superoperator.
     :param kraus_channel: The Kraus channel to convert.
     :return: The superoperator.
     """
     super_operator = None
-    for kraus_op in kraus_channel.data:
-        pauli_op = kraus_operator_in_pauli_basis(kraus_op)
+    pauli_op = kraus_operator_in_pauli_basis(kraus_channel, num_qubits)
+    for op in pauli_op:
         if super_operator is None:
-            super_operator = jnp.array(super_operator_from_pauli_operator(pauli_op))
+            super_operator = jnp.array(super_operator_from_pauli_operator(op))
         else:
-            super_operator = jnp.add(super_operator, super_operator_from_pauli_operator(pauli_op))
+            super_operator = jnp.add(super_operator, super_operator_from_pauli_operator(op))
     return super_operator
 
 
@@ -157,11 +171,10 @@ def circuit_to_super_operator(circuit):
 
 
 if __name__ == "__main__":
-    channel_ops = Kraus([jnp.array([[1, 0], [0, 1]]), jnp.array([[0, 1], [1, 0]]), jnp.array([[1, 0], [0, -1]])])
-    super_operator = kraus_channel_as_super_operator(channel_ops)
-    print(super_operator)
+    num_qubits = 1
+    channel_ops = [jnp.array([[1, 0], [0, 1]]), jnp.array([[0, 1], [1, 0]]), jnp.array([[1, 0], [0, -1]])]
+    super_operator = kraus_channel_as_super_operator(channel_ops, num_qubits)
     choi = super_operator_to_choi(super_operator)
-    print(choi)
 
     for q in range(2, 5):
         print(f"qubits: {q}")

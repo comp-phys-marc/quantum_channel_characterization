@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from functools import reduce
 from channels import unitary_to_kraus_operator, kraus_channel_as_super_operator
 from data_utils import ComplexDecoder
-from pauli_utils import index_to_string, PAULI_X, index_to_error_operator, LOOKUP
+from pauli_utils import index_to_string, PAULI_X, index_to_pauli_operator, LOOKUP
 from evaluation_utils import profile
 from circuit_qiskit import get_random_probs
 from data_utils import NumpyEncoder
@@ -86,7 +86,7 @@ def draw_pauli_error(pauli_probs, target_size):
         for j in range(i + 1):
             sum += pauli_probs[j]
         if rand < sum:
-            return index_to_error_operator(i, target_size)
+            return index_to_pauli_operator(i, target_size)
 
 
 def draw_pauli_error_string(pauli_probs, target_size):

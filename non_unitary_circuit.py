@@ -4,7 +4,7 @@ import scipy as sp
 from circuit_qiskit import get_random_probs
 from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality, laplacian_to_density_matrix, \
     density_matrix_to_laplacian
-from pauli_utils import index_to_error_operator, index_to_string, LOOKUP
+from pauli_utils import index_to_pauli_operator, index_to_string, LOOKUP
 from qiskit.quantum_info import Kraus, Choi
 from evaluation_utils import profile
 
@@ -72,7 +72,7 @@ class NonUnitaryRepr:
         """
         ops = []
         for i in range(len(error_probs)):
-            pauli_op = index_to_error_operator(i, len(targets)) * error_probs[i]
+            pauli_op = index_to_pauli_operator(i, len(targets)) * error_probs[i]
             ops.append(correct_gate_dimensionality(pauli_op, targets, num_qubits))
 
         self.apply_non_unitary_method(ops)
@@ -276,7 +276,7 @@ class LaplacianMatrices(NonUnitaryRepr):
         """
         ops = []
         for i in range(len(error_probs)):
-            pauli_op = index_to_error_operator(i, len(targets)) * error_probs[i]
+            pauli_op = index_to_pauli_operator(i, len(targets)) * error_probs[i]
             ops.append(correct_gate_dimensionality(pauli_op, targets, num_qubits))
 
         self.apply_non_unitary_method(ops, truncate=truncate)

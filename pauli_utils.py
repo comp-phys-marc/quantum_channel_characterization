@@ -50,7 +50,7 @@ def index_to_string(i, n):
     return "".join(['I' for k in range(n - len(unpadded_string))]) + unpadded_string
 
 
-def index_to_error_operator(i, target_size):
+def index_to_pauli_operator(i, target_size):
     digits = []
     while i:
         digits.append(str(int(i % 4)))
