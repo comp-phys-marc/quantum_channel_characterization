@@ -84,7 +84,7 @@ def super_operator_from_pauli_operator(pauli_operator):
         for j in range(len(coeffs)):
             n = basis.index(str(pauli_operator.paulis[j]))
             super_operator[m][n] = coeffs[i] * jnp.conjugate(coeffs[j])
-    return super_operator
+    return jnp.array(super_operator)
 
 
 @profile
@@ -102,6 +102,21 @@ def kraus_channel_as_super_operator(kraus_channel):
         else:
             super_operator = jnp.add(super_operator, super_operator_from_pauli_operator(pauli_op))
     return super_operator
+
+
+@profile
+def super_operator_to_choi(super_operator):
+    """
+    Converts a superoperator into a Choi matrix.
+    :param super_operator: The super operator.
+    :return: The Choi matrix.
+    """
+    d = int(jnp.round(jnp.sqrt(super_operator.shape[0])))
+    assert super_operator.shape == (d * d, d * d)
+
+    s = jnp.reshape(super_operator, (d, d, d, d))
+    c = jnp.swapaxes(s, 1, 2)
+    return jnp.reshape(c, (d * d, d * d))
 
 
 @profile
@@ -145,6 +160,8 @@ if __name__ == "__main__":
     channel_ops = Kraus([jnp.array([[1, 0], [0, 1]]), jnp.array([[0, 1], [1, 0]]), jnp.array([[1, 0], [0, -1]])])
     super_operator = kraus_channel_as_super_operator(channel_ops)
     print(super_operator)
+    choi = super_operator_to_choi(super_operator)
+    print(choi)
 
     for q in range(2, 5):
         print(f"qubits: {q}")
