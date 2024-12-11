@@ -346,7 +346,7 @@ if __name__ == "__main__":
 
     # get error probs
     data = {"expectations": [], "probs": []}
-    for descriptor, layer in [("", 2), ("additional_", 2), ("two_thousand_", 2)]:
+    for descriptor, layer in [("", 2), ("additional_", 2)]: #, ("two_thousand_", 2)]:
         layer_data = jnp.load(f"data/simplified/{descriptor}training_2_qubits_{layer}_layers.npy", allow_pickle=True).item()
         data["expectations"] +=  layer_data["expectations"]
         data["probs"] += layer_data["probs"]
@@ -356,5 +356,5 @@ if __name__ == "__main__":
     test_output_data = jnp.array(test_data["probs"])
 
     train_with_lasso()
-
+    # train_with_lasso_choi()
     # train_on_full()

@@ -1,6 +1,6 @@
 import json
 from qiskit_aer import Aer
-from qiskit.quantum_info import Kraus
+from qiskit.quantum_info import Kraus, SparsePauliOp
 from evaluation_utils import profile
 import matplotlib.pyplot as plt
 import jax.numpy as jnp
@@ -81,13 +81,29 @@ def kraus_operator_in_pauli_basis(kraus_operator, num_qubits):
     return paulis
 
 
+@profile
+def kraus_operator_in_pauli_basis_qiskit(kraus_operator, num_qubits):
+    """
+    Decomposes an operator into the Pauli basis.
+
+    NOTE: This method relies on a qiskit implementation which, while more efficient,
+    is partially implemented in Rust and does not use jax and is not autogradable.
+    It is however useful for its efficiency when comparing methods outside of the
+    training loop.
+
+    :param kraus_operator: a single Kraus operator, not the whole channel.
+    :return: The Pauli operators and their coefficients.
+    """
+    return SparsePauliOp.from_operator(kraus_operator)
+
+
 def super_operator_from_pauli_operator(pauli_operator):
     """
     Constructs a superoperator from a weighted sum of Paulis.
     :param pauli_operator: The SparsePauliOp to convert into a superoperator.
     :return: The constructed superoperator.
     """
-    num_qubits = len(pauli_operator['paulis'][0])
+    num_qubits = len(pauli_operator['paulis'][0])  # if using qiskit to reproduce data, these indexes need to instead be attributes
     coeffs = pauli_operator['coeffs']
     basis = get_full_pauli_basis(num_qubits)  # TODO: implement inverse lookup so don't have to gen full basis
     super_operator = [[0 for r in range(len(basis))] for s in range(len(basis))]
@@ -107,7 +123,7 @@ def kraus_channel_as_super_operator(kraus_channel, num_qubits):
     :return: The superoperator.
     """
     super_operator = None
-    pauli_op = kraus_operator_in_pauli_basis(kraus_channel, num_qubits)
+    pauli_op = kraus_operator_in_pauli_basis(kraus_channel, num_qubits)  # can be swapped out with Qiskit version
     for op in pauli_op:
         if super_operator is None:
             super_operator = jnp.array(super_operator_from_pauli_operator(op))

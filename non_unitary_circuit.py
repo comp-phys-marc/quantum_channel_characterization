@@ -7,6 +7,7 @@ from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
     density_matrix_to_laplacian
 from pauli_utils import index_to_pauli_operator, index_to_string, LOOKUP
 from evaluation_utils import profile
+from qiskit.quantum_info import Kraus, Choi
 
 
 class NonUnitaryRepr:
@@ -496,6 +497,12 @@ if __name__ == "__main__":
         measurement_probs,
         type="tape"
     )
+
+
+    # note these Qiksit calls cannot be traced and are not autogradable,
+    # however they are useful for comparison purposes
+    # kraus = Kraus(repr.unitary_systems)
+    # choi = Choi(kraus)
 
     super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
     choi = super_operator_to_choi(super_operator)
