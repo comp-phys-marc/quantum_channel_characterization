@@ -6,7 +6,6 @@ from circuit_qiskit import get_random_probs
 from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality, laplacian_to_density_matrix, \
     density_matrix_to_laplacian
 from pauli_utils import index_to_pauli_operator, index_to_string, LOOKUP
-from qiskit.quantum_info import Kraus, Choi
 from evaluation_utils import profile
 
 
@@ -206,7 +205,7 @@ class Tape(NonUnitaryRepr):
         new_list = []
         for op in ops:
             for unitary_system in self.unitary_systems:
-                new_unitary_system = op @ unitary_system
+                new_unitary_system = jnp.matmul(op, unitary_system)
                 new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:

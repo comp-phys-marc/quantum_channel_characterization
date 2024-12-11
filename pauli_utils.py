@@ -57,10 +57,12 @@ def index_to_pauli_operator(i, target_size):
         i //= 4
     unpadded_len = 0
     error = None
+    if len(digits) > 1:
+        pass
     for digit in reversed(digits):
         unpadded_len += 1
         if int(digit) == 0:
-            op = jnp.eye(2 ** target_size)
+            op = jnp.eye(2)
         elif int(digit) == 1:
             op = PAULI_X
         elif int(digit) == 2:
@@ -74,9 +76,9 @@ def index_to_pauli_operator(i, target_size):
 
     for j in range(target_size - unpadded_len):
         if error is None:
-            error = jnp.eye(2 ** target_size)
+            error = jnp.eye(2)
         else:
-            error = jnp.kron(jnp.eye(2 ** target_size), error)
+            error = jnp.kron(jnp.eye(2), error)
 
     return error
 

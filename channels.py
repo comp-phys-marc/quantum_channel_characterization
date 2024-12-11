@@ -157,7 +157,7 @@ def unitary_to_kraus_operator(unitary):
 
 
 @profile
-def circuit_to_super_operator(circuit):
+def circuit_to_super_operator(circuit, num_qubits):
     """
     Transforms a circuit into a superoperator by multiple steps.
     :param circuit: The circuit to transform.
@@ -165,7 +165,7 @@ def circuit_to_super_operator(circuit):
     """
     unitary = circuit_to_unitary(circuit)
     kraus = unitary_to_kraus_operator(unitary)
-    super_operator = kraus_channel_as_super_operator(kraus)
+    super_operator = kraus_channel_as_super_operator(kraus.data, num_qubits)
 
     return super_operator
 
@@ -181,7 +181,7 @@ if __name__ == "__main__":
         for d in range(2, 5):
             print(f"depth: {d}")
             circuit = get_circuit(q, d)
-            super_operator = circuit_to_super_operator(circuit)
+            super_operator = circuit_to_super_operator(circuit, q)
             print(super_operator)
 
     data = json.loads(json.loads(open("./data/training_dataset_2_qubits_2_layers.json", "r").read()),
