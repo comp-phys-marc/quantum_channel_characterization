@@ -13,22 +13,22 @@ from data_utils import NumpyEncoder
 from qiskit.quantum_info.operators.channel import Choi, SuperOp
 
 
-CNOT = np.array([[1, 0, 0, 0],
+CNOT = jnp.array([[1, 0, 0, 0],
                  [0, 1, 0, 0],
                  [0, 0, 0, 1],
                  [0, 0, 1, 0]])
-SWAP = np.array([[1, 0, 0, 0],
+SWAP = jnp.array([[1, 0, 0, 0],
                  [0, 0, 1, 0],
                  [0, 1, 0, 0],
                  [0, 0, 0, 1]])
 
 # some frequently used matrices pre-computed for runtime optimization
 
-CNOT_10 = np.array([[1, 0, 0, 0],
+CNOT_10 = jnp.array([[1, 0, 0, 0],
                     [0, 0, 0, 1],
                     [0, 0, 1, 0],
                     [0, 1, 0, 0]])
-CNOT_20 = np.array([[1, 0, 0, 0, 0, 0, 0, 0],
+CNOT_20 = jnp.array([[1, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 1, 0, 0],
                     [0, 0, 1, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 1],
@@ -36,7 +36,7 @@ CNOT_20 = np.array([[1, 0, 0, 0, 0, 0, 0, 0],
                     [0, 1, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 1, 0],
                     [0, 0, 0, 1, 0, 0, 0, 0]])
-CNOT_30 = np.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+CNOT_30 = jnp.array([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
                     [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
@@ -65,8 +65,8 @@ def correct_gate_dimensionality(gate, targets, num_qubits):
 
     if len(targets) == 1:
         return reduce(
-            lambda state, d_qubit: np.kron(state, d_qubit),
-            [(np.eye(2) if q not in targets else gate) for q in range(num_qubits)]
+            lambda state, d_qubit: jnp.kron(state, d_qubit),
+            [(jnp.eye(2) if q not in targets else gate) for q in range(num_qubits)]
         )
     else:
         return get_CNOT_matrix(targets[0], targets[1], num_qubits)
@@ -113,8 +113,8 @@ def apply_two_qubit_errors(errors, repr):
     :param error_two: The second error, with its dim corrected.
     :return: The matrix repr of the circuit.
     """
-    repr = np.matmul(errors[0], repr)
-    repr = np.matmul(errors[1], repr)
+    repr = jnp.matmul(errors[0], repr)
+    repr = jnp.matmul(errors[1], repr)
     return repr
 
 
@@ -129,7 +129,7 @@ def single_error_application(error_probs, targets, num_qubits, repr):
     """
     error = correct_gate_dimensionality(draw_pauli_error(error_probs, 1),
                                               targets, num_qubits)
-    repr = np.matmul(error, repr)
+    repr = jnp.matmul(error, repr)
     return repr
 
 
@@ -159,7 +159,7 @@ def get_circuit_matrix_repr(
         cnot_error_probs,
         reset_error_probs,
         measurement_error_probs,
-        method=np.matmul,
+        method=jnp.matmul,
         initial=None,
         error_method=single_error_application,
         two_qubit_error_method=two_error_applications
@@ -180,7 +180,7 @@ def get_circuit_matrix_repr(
     :return: The matrix representation of the circuit.
     """
     if initial is None:
-        repr = np.eye(2 ** num_wires)
+        repr = jnp.eye(2 ** num_wires)
     else:
         repr = initial
     for qubit in range(num_wires):

@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import scipy as sp
 
+from channels import kraus_channel_as_super_operator, super_operator_to_choi
 from circuit_qiskit import get_random_probs
 from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality, laplacian_to_density_matrix, \
     density_matrix_to_laplacian
@@ -477,6 +478,9 @@ def get_non_unitary_matrix_repr(
 
 
 if __name__ == "__main__":
+    num_qubits = 2
+    num_layers = 2
+
     # get error probs
     cnot_probs = get_random_probs(16)
     reset_probs = get_random_probs(4)
@@ -486,23 +490,23 @@ if __name__ == "__main__":
 
     # get Choi matrix
     repr = get_non_unitary_matrix_repr(
-        2,
-        2,
+        num_qubits,
+        num_layers,
         cnot_probs,
         reset_probs,
         measurement_probs,
         type="tape"
     )
 
-    kraus = Kraus(repr.unitary_systems)
-    choi = Choi(kraus)
+    super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
+    choi = super_operator_to_choi(super_operator)
 
     print("Evolving density matrix")
 
     # simulate evolution using density matrix approach
     density_matrix = get_non_unitary_matrix_repr(
-        2,
-        2,
+        num_qubits,
+        num_layers,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -513,8 +517,8 @@ if __name__ == "__main__":
 
     # simulate evolution using graph Laplacian approach
     repr = get_non_unitary_matrix_repr(
-        2,
-        2,
+        num_qubits,
+        num_layers,
         cnot_probs,
         reset_probs,
         measurement_probs,
