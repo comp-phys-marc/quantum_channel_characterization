@@ -45,7 +45,8 @@ def apply_dropout(hidden_layer_values, dropout_prob):
 
     shape = hidden_layer_values.shape
     layer = jnp.ones(shape)*1/(1-dropout_prob)
-    layer = layer.at[jrng.choice(key, jnp.arange(shape[0]), (int(shape[0] * dropout_prob),))].set(0.)
+    _, subkey = jrng.split(key)
+    layer = layer.at[jrng.choice(subkey, jnp.arange(shape[0]), (int(shape[0] * dropout_prob),))].set(0.)
 
     return hidden_layer_values * layer
 
@@ -279,7 +280,7 @@ def train_with_lasso():
     pre_training_losses = find_loss(parameters, test_input_data, test_output_data, 0)
     print("pre training loss: ", jnp.mean(pre_training_losses), "+-", jnp.std(pre_training_losses))
     loss_hist, parameters, all_removal_indices = train_model_lasso_inputs(data["expectations"], data["probs"],
-                                                                 10000, 5,
+                                                                 1500, 5,
                                                                  params=parameters)
 
     dropped_test_indices = test_input_data
