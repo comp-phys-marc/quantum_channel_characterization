@@ -349,7 +349,6 @@ if __name__ == "__main__":
         data["expectations"] +=  layer_data["expectations"]
         data["probs"] += layer_data["probs"]
 
-
     test_data = jnp.load("data/simplified/benchmarking_2_qubits_2_layers.npy", allow_pickle = True).item()
     test_input_data = jnp.array(test_data["expectations"])
     test_output_data = jnp.array(test_data["probs"])
@@ -357,6 +356,3 @@ if __name__ == "__main__":
     train_with_lasso()
 
     # train_on_full()
-
-
-

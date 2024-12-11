@@ -1,6 +1,7 @@
 import time
 from functools import wraps, partial
 
+
 def profile(func):
     """
     Provides automatic time profiling.
