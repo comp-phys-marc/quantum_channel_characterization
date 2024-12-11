@@ -1,13 +1,13 @@
-import numpy as np
+import jax.numpy as jnp
 
-PAULI_X = np.array([[0, 1],
+PAULI_X = jnp.array([[0, 1],
                     [1, 0]])
-PAULI_Y = np.array([[0, -1j],
+PAULI_Y = jnp.array([[0, -1j],
                     [1j, 0]])
-PAULI_Z = np.array([[1, 0],
+PAULI_Z = jnp.array([[1, 0],
                     [0, -1]])
 LOOKUP = {
-    'I': np.eye(2),
+    'I': jnp.eye(2),
     'X': PAULI_X,
     'Y': PAULI_Y,
     'Z': PAULI_Z,
@@ -25,9 +25,9 @@ def enumerate_observables(num_qubits):
         if observable is None:
             observable = PAULI_Z
         else:
-            observable = np.kron(PAULI_Z, observable)
+            observable = jnp.kron(PAULI_Z, observable)
 
-    eigenvalues, eigenvectors = np.linalg.eigh(observable)
+    eigenvalues, eigenvectors = jnp.linalg.eigh(observable)
 
     return [eigenvalues, eigenvectors]
 
@@ -60,7 +60,7 @@ def index_to_error_operator(i, target_size):
     for digit in reversed(digits):
         unpadded_len += 1
         if int(digit) == 0:
-            op = np.eye(2 ** target_size)
+            op = jnp.eye(2 ** target_size)
         elif int(digit) == 1:
             op = PAULI_X
         elif int(digit) == 2:
@@ -70,13 +70,13 @@ def index_to_error_operator(i, target_size):
         if error is None:
             error = op
         else:
-            error = np.kron(op, error)
+            error = jnp.kron(op, error)
 
     for j in range(target_size - unpadded_len):
         if error is None:
-            error = np.eye(2 ** target_size)
+            error = jnp.eye(2 ** target_size)
         else:
-            error = np.kron(np.eye(2 ** target_size), error)
+            error = jnp.kron(jnp.eye(2 ** target_size), error)
 
     return error
 

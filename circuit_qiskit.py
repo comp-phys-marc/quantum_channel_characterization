@@ -2,7 +2,7 @@
 from fileinput import filename
 from qiskit_aer.noise import NoiseModel, pauli_error
 
-import numpy as np
+import jax.numpy as jnp
 
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 import matplotlib.pyplot as plt
@@ -81,8 +81,8 @@ def get_random_probs(num_probs):
     :param num_probs: The number of probabilities to generate.
     :return: The generated probabilities.
     """
-    rands = np.random.rand(num_probs)
-    return rands/np.sum(rands)
+    rands = jnp.random.rand(num_probs)
+    return rands/jnp.sum(rands)
 
 
 if __name__ == '__main__':

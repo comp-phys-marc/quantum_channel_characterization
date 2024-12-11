@@ -1,4 +1,4 @@
-import numpy as np
+import jax.numpy as jnp
 import scipy as sp
 
 from circuit_qiskit import get_random_probs
@@ -27,7 +27,7 @@ class NonUnitaryRepr:
             assert isinstance(unitary_systems, list)
             self.unitary_systems = unitary_systems
         else:
-            self.unitary_systems = [np.array([[0 for j in range(0, i)] + [1] +
+            self.unitary_systems = [jnp.array([[0 for j in range(0, i)] + [1] +
                                               [0 for k in range(i + 1, 2 ** num_qubits)]
                                               for i in range(2 ** num_qubits)])]
 
@@ -122,7 +122,7 @@ class DensityMatrices(NonUnitaryRepr):
         """
         new_list = []
         for unitary_system in self.unitary_systems:
-            new_unitary_system = op @ unitary_system @ np.transpose(op)
+            new_unitary_system = op @ unitary_system @ jnp.transpose(op)
             new_list.append(new_unitary_system)
             if hash_array(op) not in self.seen_matrices:
                 self.seen_matrices[hash_array(op)] = {
@@ -147,7 +147,7 @@ class DensityMatrices(NonUnitaryRepr):
         new_list = []
         for op in ops:
             for unitary_system in self.unitary_systems:
-                new_unitary_system = op @ unitary_system @ np.transpose(op)
+                new_unitary_system = op @ unitary_system @ jnp.transpose(op)
                 new_list.append(new_unitary_system)
                 if hash_array(op) not in self.seen_matrices:
                     self.seen_matrices[hash_array(op)] = {
@@ -174,7 +174,7 @@ class Tape(NonUnitaryRepr):
         """
         super().__init__(unitary_systems, num_qubits)
         self.num_qubits = num_qubits
-        self.unitary_systems = [np.array([[0 for j in range(0, i)] + [1] +
+        self.unitary_systems = [jnp.array([[0 for j in range(0, i)] + [1] +
                                           [0 for k in range(i + 1, 2 ** num_qubits)]
                                           for i in range(2 ** num_qubits)])]
 
@@ -226,7 +226,7 @@ def truncated_logm(truncate, diff):
             if mul is None:
                 mul = diff
             else:
-                mul = np.matmul(diff, mul)
+                mul = jnp.matmul(diff, mul)
         if logm is None:
             logm = -mul / (k + 1)
         else:
@@ -323,11 +323,11 @@ class LaplacianMatrices(NonUnitaryRepr):
                                       unitary_system + self.seen_matrices[hash]['logm_inv'])
                 self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
             else:
-                diff = np.subtract(np.eye(2 ** self.num_qubits), op)
-                if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
+                diff = jnp.subtract(jnp.eye(2 ** self.num_qubits), op)
+                if jnp.linalg.norm(diff, ord=2) < 1 and truncate is not None:
                     truncated = truncated_logm(truncate, diff)
-                    truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
-                                                                                 np.transpose(op)))
+                    truncated_inv = truncated_logm(truncate, jnp.subtract(jnp.eye(2 ** self.num_qubits),
+                                                                                 jnp.transpose(op)))
                     new_unitary_system = truncated - unitary_system + truncated_inv
                     self.seen_matrices[hash_array(op)] = {
                         'logm': truncated,
@@ -337,7 +337,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                     }
                 else:
                     lgm = sp.linalg.logm(op)
-                    lgm_inv = sp.linalg.logm(np.transpose(op))
+                    lgm_inv = sp.linalg.logm(jnp.transpose(op))
                     new_unitary_system = lgm - unitary_system + lgm_inv
                     self.seen_matrices[hash_array(op)] = {
                         'logm': lgm,
@@ -369,11 +369,11 @@ class LaplacianMatrices(NonUnitaryRepr):
                                               unitary_system + self.seen_matrices[hash]['logm_inv'])
                         self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
                     else:
-                        diff = np.subtract(np.eye(2 ** self.num_qubits), op)
-                        if np.linalg.norm(diff, ord=2) < 1 and truncate is not None:
+                        diff = jnp.subtract(jnp.eye(2 ** self.num_qubits), op)
+                        if jnp.linalg.norm(diff, ord=2) < 1 and truncate is not None:
                             truncated = truncated_logm(truncate, diff)
-                            truncated_inv = truncated_logm(truncate, np.subtract(np.eye(2 ** self.num_qubits),
-                                                                                 np.transpose(op)))
+                            truncated_inv = truncated_logm(truncate, jnp.subtract(jnp.eye(2 ** self.num_qubits),
+                                                                                 jnp.transpose(op)))
                             new_unitary_system = truncated - unitary_system + truncated_inv
                             self.seen_matrices[hash_array(op)] = {
                                 'logm': truncated,
@@ -383,7 +383,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                             }
                         else:
                             lgm = sp.linalg.logm(op)
-                            lgm_inv = sp.linalg.logm(np.transpose(op))
+                            lgm_inv = sp.linalg.logm(jnp.transpose(op))
                             new_unitary_system = lgm - unitary_system + lgm_inv
                             self.seen_matrices[hash_array(op)] = {
                                 'logm': lgm,
@@ -400,7 +400,7 @@ class LaplacianMatrices(NonUnitaryRepr):
 def hash_array(arr, precision=3):
     hash = ''
     for elem in arr:
-        if not isinstance(elem, np.ndarray) and not isinstance(elem, list):
+        if not isinstance(elem, jnp.ndarray) and not isinstance(elem, list):
             hash += str(elem).split('.')[0] + '.'
             if len(str(elem).split('.')) > 1:
                 dec = str(elem).split('.')[1]
@@ -482,27 +482,27 @@ if __name__ == "__main__":
     reset_probs = get_random_probs(4)
     measurement_probs = get_random_probs(4)
 
-    # print("Building Choi matrix")
-    #
-    # # get Choi matrix
-    # repr = get_non_unitary_matrix_repr(
-    #     2,
-    #     2,
-    #     cnot_probs,
-    #     reset_probs,
-    #     measurement_probs,
-    #     type="tape"
-    # )
-    #
-    # kraus = Kraus(repr.unitary_systems)
-    # choi = Choi(kraus)
+    print("Building Choi matrix")
+
+    # get Choi matrix
+    repr = get_non_unitary_matrix_repr(
+        2,
+        2,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        type="tape"
+    )
+
+    kraus = Kraus(repr.unitary_systems)
+    choi = Choi(kraus)
 
     print("Evolving density matrix")
 
     # simulate evolution using density matrix approach
     density_matrix = get_non_unitary_matrix_repr(
         2,
-        4,
+        2,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -514,7 +514,7 @@ if __name__ == "__main__":
     # simulate evolution using graph Laplacian approach
     repr = get_non_unitary_matrix_repr(
         2,
-        4,
+        2,
         cnot_probs,
         reset_probs,
         measurement_probs,
@@ -528,7 +528,7 @@ if __name__ == "__main__":
     def re_execute_density_matrix_circuit(density_matrix):
         for k, v in density_matrix.seen_matrices.items():
             for target in v['applied_to']:
-                res = np.matmul(np.matmul(v['orig'], target), v['orig'])
+                res = jnp.matmul(jnp.matmul(v['orig'], target), v['orig'])
 
     @profile
     def re_execute_laplacian_circuit(laplacian):
@@ -551,12 +551,12 @@ if __name__ == "__main__":
     def apply_logm(logm, target):
         logm - target + logm
 
-    target = np.eye(2 ** repr.num_qubits)
+    target = jnp.eye(2 ** repr.num_qubits)
     for k, v in repr.seen_matrices.items():
         orig = v['orig']
         apply_orig(orig, target)
 
-    target = np.eye(2 ** repr.num_qubits)
+    target = jnp.eye(2 ** repr.num_qubits)
     for k, v in repr.seen_matrices.items():
         logm = v['logm']
         apply_logm(logm, target)

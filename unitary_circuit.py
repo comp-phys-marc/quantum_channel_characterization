@@ -2,7 +2,7 @@ import json
 import random
 import scipy as sp
 import networkx as nx
-import numpy as np
+import jax.numpy as jnp
 from functools import reduce
 from channels import unitary_to_kraus_operator, kraus_channel_as_super_operator
 from data_utils import ComplexDecoder
@@ -262,7 +262,7 @@ def get_CNOT_matrix(source, target, num_qubits):
         one_position = int(label, 2)
         row[one_position] = 1.
 
-    return np.array(cx_matrix)
+    return jnp.array(cx_matrix)
 
 
 def adjacency_matrix_to_laplacian(graph):
@@ -282,7 +282,7 @@ def apply_unitary(unitary, laplacian):
     :param unitary: The unitary to apply.
     :return: The Laplacian after unitary evolution.
     """
-    return sp.linalg.logm(unitary) - laplacian + sp.linalg.logm(np.transpose(unitary))
+    return sp.linalg.logm(unitary) - laplacian + sp.linalg.logm(jnp.transpose(unitary))
 
 
 def density_matrix_to_laplacian(density_matrix, beta=1):
@@ -303,7 +303,7 @@ def laplacian_to_density_matrix(laplacian, beta=1, truncate=None):
     :return: The density matrix.
     """
     if truncate is None:
-        return (sp.linalg.expm(-beta * laplacian)) / np.trace(sp.linalg.expm(-beta * laplacian))
+        return (sp.linalg.expm(-beta * laplacian)) / jnp.trace(sp.linalg.expm(-beta * laplacian))
     else:
         expm = None
         for p in range(truncate):
@@ -312,12 +312,12 @@ def laplacian_to_density_matrix(laplacian, beta=1, truncate=None):
                 if mul is None:
                     mul = (-beta * laplacian)
                 else:
-                    mul = np.matmul(-beta * laplacian, mul)
+                    mul = jnp.matmul(-beta * laplacian, mul)
             if expm is None:
                 expm = mul / sp.math.factorial(p)
             else:
                 expm += mul / sp.math.factorial(p)
-        return expm / np.trace(expm)
+        return expm / jnp.trace(expm)
 
 
 def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qubits, num_layers):
@@ -326,7 +326,7 @@ def pauli_probs_to_laplacian(cnot_probs, reset_probs, measurement_probs, num_qub
     :param pauli_probs: The probabilities of Pauli errors.
     :return: The Laplacian.
     """
-    laplacian = np.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
+    laplacian = jnp.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
                           [0 for k in range(i, 2 ** n)] for i in range(2 ** n)])
 
     return get_circuit_matrix_repr(
@@ -399,8 +399,8 @@ if __name__ == "__main__":
     data_from_direct_method = json.loads(json.loads(open("./data/direct_training_dataset_4_qubits_2_layers.json", "r")
                                                     .read()), cls=ComplexDecoder)
 
-    assert (np.array(data_from_tomograhpy['0']['choi_matrix']).shape ==
-            np.array(data_from_direct_method['0']['choi_matrix']).shape)
+    assert (jnp.array(data_from_tomograhpy['0']['choi_matrix']).shape ==
+            jnp.array(data_from_direct_method['0']['choi_matrix']).shape)
 
 
     # generate 4-qubit data quickly
@@ -411,7 +411,7 @@ if __name__ == "__main__":
     n = 2
 
     # initial matrix representation
-    laplacian = np.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
+    laplacian = jnp.array([[0 for j in range(0, i)] + [1 / (2 ** n)] +
                           [0 for k in range(i + 1, 2 ** n)] for i in range(2 ** n)])
 
     # load some example error probabilities

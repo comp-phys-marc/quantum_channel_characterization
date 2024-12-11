@@ -249,7 +249,6 @@ if __name__ == "__main__":
         data["expectations"] +=  layer_data["expectations"]
         data["probs"] += layer_data["probs"]
 
-
     test_data = jnp.load("data/simplified/benchmarking_2_qubits_2_layers.npy", allow_pickle = True).item()
     parameters = get_params()
 
@@ -262,4 +261,3 @@ if __name__ == "__main__":
 
     plt.plot(loss_hist)
     plt.savefig("loss_history.jpg")
-

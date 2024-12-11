@@ -3,7 +3,7 @@ from qiskit_aer import Aer
 from qiskit.quantum_info import SparsePauliOp, Kraus
 from evaluation_utils import profile
 import matplotlib.pyplot as plt
-import numpy as np
+import jax.numpy as jnp
 from circuit_qiskit import get_circuit
 from data_utils import ComplexDecoder
 from pauli_utils import index_to_string
@@ -17,16 +17,16 @@ def compare_choi_matrices(choi_one, choi_two):
     :return: The norms of the difference of the two Choi matrices.
     """
     assert(choi_one.shape == choi_two.shape)
-    diff = np.subtract(choi_one, choi_two)
+    diff = jnp.subtract(choi_one, choi_two)
     return [
-        np.linalg.norm(diff, ord='fro'),   # Frobenius norm
-        np.linalg.norm(diff, ord='nuc'),   # Nuclear norm
-        np.linalg.norm(diff, ord=np.inf),  # max(sum(abs(x), axis=1))
-        np.linalg.norm(diff, ord=-np.inf), # min(sum(abs(x), axis=1))
-        np.linalg.norm(diff, ord=1),       # max(sum(abs(x), axis=0))
-        np.linalg.norm(diff, ord=-1),      # min(sum(abs(x), axis=0))
-        np.linalg.norm(diff, ord=2),       # 2-norm (largest singular value)
-        np.linalg.norm(diff, ord=-2),      # smallest singular value
+        jnp.linalg.norm(diff, ord='fro'),   # Frobenius norm
+        jnp.linalg.norm(diff, ord='nuc'),   # Nuclear norm
+        jnp.linalg.norm(diff, ord=jnp.inf),  # max(sum(abs(x), axis=1))
+        jnp.linalg.norm(diff, ord=-jnp.inf), # min(sum(abs(x), axis=1))
+        jnp.linalg.norm(diff, ord=1),       # max(sum(abs(x), axis=0))
+        jnp.linalg.norm(diff, ord=-1),      # min(sum(abs(x), axis=0))
+        jnp.linalg.norm(diff, ord=2),       # 2-norm (largest singular value)
+        jnp.linalg.norm(diff, ord=-2),      # smallest singular value
     ]
 
 
@@ -36,9 +36,9 @@ def plot_choi(choi_matrix):
     :param choi_matrix: The matrix to plot.
     :return: None
     """
-    plt.matshow(np.real(choi_matrix))
+    plt.matshow(jnp.real(choi_matrix))
     plt.show()
-    plt.matshow(np.imag(choi_matrix))
+    plt.matshow(jnp.imag(choi_matrix))
     plt.show()
 
 
@@ -83,7 +83,7 @@ def super_operator_from_pauli_operator(pauli_operator):
         m = basis.index(str(pauli_operator.paulis[i]))
         for j in range(len(coeffs)):
             n = basis.index(str(pauli_operator.paulis[j]))
-            super_operator[m][n] = coeffs[i] * np.conjugate(coeffs[j])
+            super_operator[m][n] = coeffs[i] * jnp.conjugate(coeffs[j])
     return super_operator
 
 
@@ -98,9 +98,9 @@ def kraus_channel_as_super_operator(kraus_channel):
     for kraus_op in kraus_channel.data:
         pauli_op = kraus_operator_in_pauli_basis(kraus_op)
         if super_operator is None:
-            super_operator = np.array(super_operator_from_pauli_operator(pauli_op))
+            super_operator = jnp.array(super_operator_from_pauli_operator(pauli_op))
         else:
-            super_operator = np.add(super_operator, super_operator_from_pauli_operator(pauli_op))
+            super_operator = jnp.add(super_operator, super_operator_from_pauli_operator(pauli_op))
     return super_operator
 
 
@@ -142,7 +142,7 @@ def circuit_to_super_operator(circuit):
 
 
 if __name__ == "__main__":
-    channel_ops = Kraus([np.array([[1, 0], [0, 1]]), np.array([[0, 1], [1, 0]]), np.array([[1, 0], [0, -1]])])
+    channel_ops = Kraus([jnp.array([[1, 0], [0, 1]]), jnp.array([[0, 1], [1, 0]]), jnp.array([[1, 0], [0, -1]])])
     super_operator = kraus_channel_as_super_operator(channel_ops)
     print(super_operator)
 
@@ -157,5 +157,5 @@ if __name__ == "__main__":
     data = json.loads(json.loads(open("./data/training_dataset_2_qubits_2_layers.json", "r").read()),
                       cls=ComplexDecoder)
 
-    norms = compare_choi_matrices(np.array(data["0"]["choi_matrix"]), np.array(data["1"]["choi_matrix"]))
+    norms = compare_choi_matrices(jnp.array(data["0"]["choi_matrix"]), jnp.array(data["1"]["choi_matrix"]))
     print(norms)
