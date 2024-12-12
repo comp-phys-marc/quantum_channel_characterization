@@ -234,13 +234,15 @@ def train_model_lasso_inputs(input_dataset, expected_dataset, num_batches, remov
     for i in tqdm(range(remove_iterations)):
         opt_states = [optimizer.init((input_data_weights[:, inp_cut], W_inputs[inp_cut])) for inp_cut in range(num_input_cuts)]
 
-        grad_fn = jax.vmap(jax.grad(first_layer_loss, argnums=(1, 2)), in_axes=(-1, -1, 0, 1))
+        grad_fn = jax.jit(jax.vmap(jax.grad(first_layer_loss, argnums=(1, 2)), in_axes=(-1, -1, 0, 1)))
+        update = jax.jit(optimizer.update)
+        apply_updates = jax.jit(optax.apply_updates)
 
         for batch_i in range(num_batches):
             grads = grad_fn(input_dataset, input_data_weights, W_inputs, first_layer_training_set) # TODO
             for inp_cut in range(num_input_cuts):
-                updates, opt_states[inp_cut] = optimizer.update((grads[0][inp_cut],grads[1][inp_cut]), opt_states[inp_cut])
-                params = optax.apply_updates((input_data_weights[:, inp_cut], W_inputs[inp_cut]), updates)
+                updates, opt_states[inp_cut] = update((grads[0][inp_cut],grads[1][inp_cut]), opt_states[inp_cut])
+                params = apply_updates((input_data_weights[:, inp_cut], W_inputs[inp_cut]), updates)
                 input_data_weights = input_data_weights.at[:,inp_cut].set(params[0])
                 W_inputs = W_inputs.at[inp_cut].set(params[1])
 
@@ -281,8 +283,8 @@ def train_with_lasso():
     pre_training_losses = find_loss(parameters, test_input_data, test_output_data, 0)
     print("pre training loss: ", jnp.mean(pre_training_losses), "+-", jnp.std(pre_training_losses))
     loss_hist, parameters, all_removal_indices = train_model_lasso_inputs(data["expectations"], data["probs"],
-                                                                 1500, 5,
-                                                                 params=parameters)
+                                                                 5000, 2,
+                                                                 params=parameters, dropout_prob=0)
 
     dropped_test_indices = test_input_data
 
@@ -292,8 +294,10 @@ def train_with_lasso():
     post_training_losses = find_loss(parameters, dropped_test_indices, test_output_data, 0)
     print("post training loss: ", jnp.mean(post_training_losses), "+-", jnp.std(post_training_losses))
 
+
     plt.plot(loss_hist)
-    plt.savefig("loss_history_with_lasso.jpg")
+    plt.savefig("loss_history_with_lasso_2_qubits.jpg")
+    np.save("2qubit_train_results.npy", loss_hist)
 
 
 def train_with_lasso_choi():
@@ -338,7 +342,7 @@ def train_with_lasso_choi():
     print("post training loss: ", jnp.mean(post_training_losses), "+-", jnp.std(post_training_losses))
 
     plt.plot(loss_hist)
-    plt.savefig("loss_history_with_lasso.jpg")
+    plt.savefig("loss_history_with_lasso_4_qubits.jpg")
 
 
 if __name__ == "__main__":
@@ -346,12 +350,13 @@ if __name__ == "__main__":
 
     # get error probs
     data = {"expectations": [], "probs": []}
+    qubits = 2
     for descriptor, layer in [("", 2), ("additional_", 2), ("two_thousand_", 2)]:
-        layer_data = jnp.load(f"data/simplified/{descriptor}training_2_qubits_{layer}_layers.npy", allow_pickle=True).item()
+        layer_data = jnp.load(f"data/simplified/{descriptor}training_{qubits}_qubits_{layer}_layers.npy", allow_pickle=True).item()
         data["expectations"] +=  layer_data["expectations"]
         data["probs"] += layer_data["probs"]
 
-    test_data = jnp.load("data/simplified/benchmarking_2_qubits_2_layers.npy", allow_pickle = True).item()
+    test_data = jnp.load(f"data/simplified/benchmarking_{qubits}_qubits_2_layers.npy", allow_pickle = True).item()
     test_input_data = jnp.array(test_data["expectations"])
     test_output_data = jnp.array(test_data["probs"])
 

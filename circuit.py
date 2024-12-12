@@ -79,3 +79,8 @@ def apply_spam_errors(num_wires):
 def apply_X_gates(num_wires):
     for wire in range(num_wires):
         qml.X(wire)
+
+from matplotlib import pyplot as plt
+
+qml.draw_mpl(get_qnode(4))(4)
+plt.savefig("circuit_4_by_4.png")
