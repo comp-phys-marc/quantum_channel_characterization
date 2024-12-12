@@ -287,7 +287,7 @@ def train_with_lasso():
     dropped_test_indices = test_input_data
 
     for removal_indices in all_removal_indices:
-        dropped_test_indices = remove_from_input_dataset(dropped_test_indices, removal_indices)
+         dropped_test_indices = remove_from_input_dataset(dropped_test_indices, removal_indices)
 
     post_training_losses = find_loss(parameters, dropped_test_indices, test_output_data, 0)
     print("post training loss: ", jnp.mean(post_training_losses), "+-", jnp.std(post_training_losses))
