@@ -127,8 +127,8 @@ def expectation_matrix_from_counts_from_data(data, qubits):
         outcomes_arr = v['outcomes']
         i = 0
         # expectations = np.array([[0.0 for _ in range(2 ** qubits)] for _ in range(4 ** qubits)])
-        expectations = np.array([[0.0 for _ in range(81)] for _ in range(4 ** qubits)])
-        while i < 81 * (4 ** qubits):
+        expectations = np.array([[0.0 for _ in range(3**qubits)] for _ in range(4 ** qubits)])
+        while i < (3 ** qubits) * (4 ** qubits):
             measurement = outcomes_arr[i]
             pauli_string = index_to_string(math.floor(i / (2 ** qubits)), qubits)
             counts = measurement['counts']
@@ -138,7 +138,7 @@ def expectation_matrix_from_counts_from_data(data, qubits):
                 total += bitstring_to_observable_eigenvalue(bitstring, pauli_string) * times_observed
                 total_weight += times_observed
             expectation = total / total_weight
-            expectations[math.floor(i / 81)][i % (2 ** qubits)] = expectation
+            expectations[math.floor(i / (3**qubits))][i % (2 ** qubits)] = expectation
             # expectations[math.floor(i / (2 ** qubits))][i % (2 ** qubits)] = expectation
             i += 1
         expectations_matrices.append(expectations)
@@ -147,26 +147,33 @@ def expectation_matrix_from_counts_from_data(data, qubits):
 
 
 if __name__ == '__main__':
-    qubits, layers = 4, 2
-    type_of_data = "benchmarking"
+    qubits, layers = 2, 4
+    type_of_data = "additional_training"
 
     data = json.loads(json.loads(
         open(f"./data/{type_of_data}_dataset_{qubits}_qubits_{layers}_layers.json", "r").read()),
                  cls=ComplexDecoder)
     print("loaded data")
+    print(len(data["0"]["outcomes"]))
 
 
     expectations = expectation_matrix_from_counts_from_data(data, qubits)
 
-    probs_list = []
-    for i, value in enumerate(data.values()):
-        probs_to_concat = []
-        for probs_name in ("reset_probs", "cnot_probs", "measurement_probs"):
-            probs_to_concat.append(jnp.array(value[probs_name]))
-        probs_list.append(jnp.concatenate(probs_to_concat))
+    chois_list = [value["choi_matrix"] for value in data.values()]
+    data = {"expectations": expectations, "chois": chois_list}
+    np.save(f"./data/simplified/chois_{type_of_data}_{qubits}_qubits_{layers}_layers.npy", data,
+            allow_pickle=True)
 
-    data = {"expectations": expectations, "probs": probs_list}
-    np.save(f"./data/simplified/{type_of_data}_{qubits}_qubits_{layers}_layers.npy", data, allow_pickle=True)
+    # probs_list = []
+    # for i, value in enumerate(data.values()):
+    #     probs_to_concat = []
+    #     for probs_name in ("reset_probs", "cnot_probs", "measurement_probs"):
+    #         probs_to_concat.append(jnp.array(value[probs_name]))
+    #     probs_list.append(jnp.concatenate(probs_to_concat))
+    #
+    # data = {"expectations": expectations, "probs": probs_list}
+    # np.save(f"./data/simplified/{type_of_data}_{qubits}_qubits_{layers}_layers.npy", data,
+    #         allow_pickle=True)
 
 
 
