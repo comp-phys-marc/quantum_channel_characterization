@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from channels import kraus_channel_as_super_operator, super_operator_to_choi
+from circuit_get_choi import choi_calc_method
 from non_unitary_circuit import get_non_unitary_matrix_repr
 
 jax.config.update("jax_enable_x64", True)
@@ -118,23 +119,25 @@ def batch_loss(params, input_expectations, expected_probs, dropout_prob=0.):
     return jnp.mean(losses)
 
 
+@functools.partial(jax.vmap, in_axes=(None, 0, 0, None))
 def find_loss_choi(params, input_expectations, expected_choi, dropout_prob):
-    losses = []
-    probs = jax.vmap(model_for_probs, in_axes=(0, None, None, None, None))(input_expectations, *params, dropout_prob)
+    probs = model_for_probs(input_expectations, *params, dropout_prob)
     reset_probs, cnot_probs, measurement_probs = probs
-    for i in range(len(input_expectations)):
-        repr = get_non_unitary_matrix_repr(
-            2,
-            2,
-            cnot_probs[i],
-            reset_probs[i],
-            measurement_probs[i],
-            type="tape"
-        )
-        super_operator = kraus_channel_as_super_operator(repr.unitary_systems, 2)
-        choi = super_operator_to_choi(super_operator)
-        losses.append(jnp.linalg.norm(choi - expected_choi[i], ord='fro'))
-    return jnp.array(losses)
+    # repr = get_non_unitary_matrix_repr(
+    #     2,
+    #     2,
+    #     cnot_probs,
+    #     reset_probs,
+    #     measurement_probs,
+    #     type="tape"
+    # )
+    # print("got repr")
+    # super_operator = kraus_channel_as_super_operator(repr.unitary_systems, 2)
+    # print("got super op")
+    # choi = super_operator_to_choi(super_operator)
+    # print("got choi")
+    choi = choi_calc_method(cnot_probs, reset_probs, measurement_probs, 2, 2)
+    return jnp.linalg.norm(choi - expected_choi, ord='fro')
 
 
 def batch_loss_choi(params, input_expectations, expected_probs, dropout_prob=0.):
@@ -301,54 +304,49 @@ def train_with_lasso():
 
 
 def train_with_lasso_choi():
-    # data = {"expectations": [], "chois": []}
-    #
-    # for descriptor, layer in [("", 2), ("additional_", 2), ("two_thousand_", 2)]:
-    #     layer_data = jnp.load(f"data/simplified/chois_{descriptor}training_2_qubits_{layer}_layers.npy",
-    #                           allow_pickle=True).item()
-    #     data["expectations"] += layer_data["expectations"]
-    #     data["chois"] += layer_data["chois"]
-    #
-    # test_data = jnp.load("data/simplified/chois_benchmarking_2_qubits_2_layers.npy",
-    #                      allow_pickle=True).item()
     data = {"expectations": [], "chois": []}
 
-    for descriptor, layer in [("", 2)]:
+    for descriptor, layer in [("", 2), ("additional_", 2)]:
         layer_data = jnp.load(f"data/simplified/chois_{descriptor}training_2_qubits_{layer}_layers.npy",
                               allow_pickle=True).item()
-        data["expectations"] += layer_data["expectations"][:5]
-        data["chois"] += layer_data["chois"][:5]
+        data["expectations"] += layer_data["expectations"]
+        data["chois"] += layer_data["chois"]
 
     test_data = jnp.load("data/simplified/chois_benchmarking_2_qubits_2_layers.npy",
                          allow_pickle=True).item()
 
-    test_input_data = jnp.array(test_data["expectations"][:5])
-    test_output_data = jnp.array(test_data["chois"][:5])
+    test_input_data = jnp.array(test_data["expectations"])
+    test_output_data = jnp.array(test_data["chois"])
 
     parameters = get_params()
 
     pre_training_losses = find_loss_choi(parameters, test_input_data, test_output_data, 0)
     print("pre training loss: ", jnp.mean(pre_training_losses), "+-", jnp.std(pre_training_losses))
     loss_hist, parameters, all_removal_indices = train_model_lasso_inputs(data["expectations"], data["chois"],
-                                                                 5, 5,
-                                                                 params=parameters, loss_fn=batch_loss_choi, jit=False)
+                                                                 1500, 1,
+                                                                 params=parameters, loss_fn=batch_loss_choi, jit=True)
+
+    plt.plot(loss_hist)
+    plt.savefig("choi_loss_history_with_lasso_2_qubits.jpg")
 
     dropped_test_indices = test_input_data
 
     for removal_indices in all_removal_indices:
         dropped_test_indices = remove_from_input_dataset(dropped_test_indices, removal_indices)
 
-    post_training_losses = find_loss(parameters, dropped_test_indices, test_output_data, 0, loss_fn=batch_loss_choi)
-    print("post training loss: ", jnp.mean(post_training_losses), "+-", jnp.std(post_training_losses))
 
-    plt.plot(loss_hist)
-    plt.savefig("loss_history_with_lasso_4_qubits.jpg")
+    post_training_losses = find_loss_choi(parameters, dropped_test_indices, test_output_data, 0)
+
+
+
+
+    print("post training loss: ", jnp.mean(post_training_losses), "+-",
+          jnp.std(post_training_losses))
 
 
 if __name__ == "__main__":
-    # train_with_lasso_choi()
 
-    # get error probs
+    #get error probs
     data = {"expectations": [], "probs": []}
     qubits = 2
     for descriptor, layer in [("", 2), ("additional_", 2), ("two_thousand_", 2)]:
@@ -361,5 +359,5 @@ if __name__ == "__main__":
     test_output_data = jnp.array(test_data["probs"])
 
     train_with_lasso()
-
+    # train_with_lasso_choi()
     # train_on_full()
