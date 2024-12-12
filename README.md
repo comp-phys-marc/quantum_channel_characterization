@@ -1,6 +1,6 @@
 # Quantum Channel and State Graph Learning
 
-In this repo we make use primarily of Qiskit and Jax to implement depp learning approaches to learning 
+In this repo we make use primarily of Qiskit and Jax to implement deep learning approaches to learning 
 Pauli error rates on a circuit with many-body qubit interaction and dynamical decoupling.
 
 The repo is broken into the following files, and generally into two components which can be decoupled. 
@@ -31,7 +31,7 @@ implementation that we used to generate our training and benchmark data.
 ## data_utils.py 
 
 This file contains utilities for saving and loading our data as well as transformting our data. We add support to json 
-for complex values and we implement a translation from Qiskit's maesurement counts to quantum expectation values.
+for complex values and we implement a translation from Qiskit's measurement counts to quantum expectation values.
 
 ## evalutation_utils.py
 
