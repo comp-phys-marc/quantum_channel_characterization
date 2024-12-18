@@ -400,6 +400,8 @@ class LaplacianMatrices(NonUnitaryRepr):
 
 def hash_array(arr, precision=3):
     hash = ''
+    if arr.shape == ():
+        return str(arr)
     for elem in arr:
         if not isinstance(elem, jnp.ndarray) and not isinstance(elem, list):
             hash += str(elem).split('.')[0] + '.'
@@ -486,17 +488,17 @@ if __name__ == "__main__":
     reset_probs = get_random_probs(4)
     measurement_probs = get_random_probs(4)
 
-    print("Building Choi matrix")
-
-    # get Choi matrix
-    repr = get_non_unitary_matrix_repr(
-        num_qubits,
-        num_layers,
-        cnot_probs,
-        reset_probs,
-        measurement_probs,
-        type="tape"
-    )
+    # print("Building Choi matrix")
+    #
+    # # get Choi matrix
+    # repr = get_non_unitary_matrix_repr(
+    #     num_qubits,
+    #     num_layers,
+    #     cnot_probs,
+    #     reset_probs,
+    #     measurement_probs,
+    #     type="tape"
+    # )
 
 
     # note these Qiksit calls cannot be traced and are not autogradable,
@@ -504,20 +506,20 @@ if __name__ == "__main__":
     # kraus = Kraus(repr.unitary_systems)
     # choi = Choi(kraus)
 
-    super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
-    choi = super_operator_to_choi(super_operator)
+    # super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
+    # choi = super_operator_to_choi(super_operator)
 
-    print("Evolving density matrix")
-
-    # simulate evolution using density matrix approach
-    density_matrix = get_non_unitary_matrix_repr(
-        num_qubits,
-        num_layers,
-        cnot_probs,
-        reset_probs,
-        measurement_probs,
-        type="density_matrix"
-    )
+    # print("Evolving density matrix")
+    #
+    # # simulate evolution using density matrix approach
+    # density_matrix = get_non_unitary_matrix_repr(
+    #     num_qubits,
+    #     num_layers,
+    #     cnot_probs,
+    #     reset_probs,
+    #     measurement_probs,
+    #     type="density_matrix"
+    # )
 
     print("Evolving graph Laplacian")
 
@@ -530,6 +532,18 @@ if __name__ == "__main__":
         measurement_probs,
         type="laplacian"
     )
+
+    # check when we can do our trick
+
+    count = 0
+    commuting = 0
+    for k, v in repr.seen_matrices.items():
+        for target in v['added_to']:
+            diff = v['logm'] @ target - target @ v['logm']
+            count += 1
+            if not jnp.any(diff):
+                commuting += 1
+    print(f"speedup valid for {commuting} of {count} ops.")
 
     # direct test of advantage
 
@@ -570,3 +584,4 @@ if __name__ == "__main__":
     for k, v in repr.seen_matrices.items():
         logm = v['logm']
         apply_logm(logm, target)
+
