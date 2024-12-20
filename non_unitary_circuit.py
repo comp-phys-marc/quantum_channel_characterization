@@ -621,7 +621,7 @@ if __name__ == "__main__":
     def re_execute_laplacian_circuit(laplacian):
         for k, v in laplacian.seen_matrices.items():
             for i in range(len(v['added_to'])):
-                if v['method'][i] == 'sum':
+                if v['method'][i][0] == 's':
                     res = 2 * v['logm'] - v['added_to'][i]
                 else:
                     res = v['orig'] @ v['added_to'][i] @ v['orig']
