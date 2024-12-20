@@ -320,8 +320,14 @@ class LaplacianMatrices(NonUnitaryRepr):
         for unitary_system in self.unitary_systems:
             hash = hash_array(op)
             if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
-                new_unitary_system = (self.seen_matrices[hash]['logm'] -
-                                      unitary_system + self.seen_matrices[hash]['logm_inv'])
+                d = self.seen_matrices[hash]['logm'] @ unitary_system - unitary_system @ self.seen_matrices[hash]['logm']
+                if not jnp.any(d):
+                    new_unitary_system = (self.seen_matrices[hash]['logm'] -
+                                          unitary_system + self.seen_matrices[hash]['logm_inv'])
+                    self.seen_matrices[hash_array(op)]['method'].append('sum')
+                else:
+                    new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                    self.seen_matrices[hash_array(op)]['method'].append('mul')
                 self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
             else:
                 diff = jnp.subtract(jnp.eye(2 ** self.num_qubits), op)
@@ -329,23 +335,48 @@ class LaplacianMatrices(NonUnitaryRepr):
                     truncated = truncated_logm(truncate, diff)
                     truncated_inv = truncated_logm(truncate, jnp.subtract(jnp.eye(2 ** self.num_qubits),
                                                                                  jnp.transpose(op)))
-                    new_unitary_system = truncated - unitary_system + truncated_inv
-                    self.seen_matrices[hash_array(op)] = {
-                        'logm': truncated,
-                        'logm_inv': truncated_inv,
-                        'orig': op,
-                        'added_to': [unitary_system]
-                    }
+
+                    d = truncated @ unitary_system - unitary_system @ truncated
+                    if not jnp.any(d):
+                        new_unitary_system = truncated - unitary_system + truncated_inv
+                        self.seen_matrices[hash_array(op)] = {
+                            'logm': truncated,
+                            'logm_inv': truncated_inv,
+                            'orig': op,
+                            'added_to': [unitary_system],
+                            'method': ['sum']
+                        }
+                    else:
+                        new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                        self.seen_matrices[hash_array(op)] = {
+                            'logm': truncated,
+                            'logm_inv': truncated_inv,
+                            'orig': op,
+                            'added_to': [unitary_system],
+                            'method': ['mul']
+                        }
                 else:
                     lgm = sp.linalg.logm(op)
                     lgm_inv = sp.linalg.logm(jnp.transpose(op))
-                    new_unitary_system = lgm - unitary_system + lgm_inv
-                    self.seen_matrices[hash_array(op)] = {
-                        'logm': lgm,
-                        'logm_inv': lgm_inv,
-                        'orig': op,
-                        'added_to': [unitary_system]
-                    }
+                    d = lgm @ unitary_system - unitary_system @ lgm_inv
+                    if not jnp.any(d):
+                        new_unitary_system = lgm - unitary_system + lgm_inv
+                        self.seen_matrices[hash_array(op)] = {
+                            'logm': lgm,
+                            'logm_inv': lgm_inv,
+                            'orig': op,
+                            'added_to': [unitary_system],
+                            'method': ['sum']
+                        }
+                    else:
+                        new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                        self.seen_matrices[hash_array(op)] = {
+                            'logm': lgm,
+                            'logm_inv': lgm_inv,
+                            'orig': op,
+                            'added_to': [unitary_system],
+                            'method': ['mul']
+                        }
             new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:
@@ -366,8 +397,15 @@ class LaplacianMatrices(NonUnitaryRepr):
                 for unitary_system in self.unitary_systems:
                     hash = hash_array(op)
                     if len(self.seen_matrices) > 0 and hash in self.seen_matrices:
-                        new_unitary_system = (self.seen_matrices[hash]['logm'] -
-                                              unitary_system + self.seen_matrices[hash]['logm_inv'])
+                        d = self.seen_matrices[hash]['logm'] @ unitary_system - unitary_system @ \
+                            self.seen_matrices[hash]['logm']
+                        if not jnp.any(d):
+                            new_unitary_system = (self.seen_matrices[hash]['logm'] -
+                                                  unitary_system + self.seen_matrices[hash]['logm_inv'])
+                            self.seen_matrices[hash_array(op)]['method'].append('sum')
+                        else:
+                            new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                            self.seen_matrices[hash_array(op)]['method'].append('mul')
                         self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
                     else:
                         diff = jnp.subtract(jnp.eye(2 ** self.num_qubits), op)
@@ -375,23 +413,48 @@ class LaplacianMatrices(NonUnitaryRepr):
                             truncated = truncated_logm(truncate, diff)
                             truncated_inv = truncated_logm(truncate, jnp.subtract(jnp.eye(2 ** self.num_qubits),
                                                                                  jnp.transpose(op)))
-                            new_unitary_system = truncated - unitary_system + truncated_inv
-                            self.seen_matrices[hash_array(op)] = {
-                                'logm': truncated,
-                                'logm_inv': truncated_inv,
-                                'orig': op,
-                                'added_to': [unitary_system]
-                            }
+                            d = truncated @ unitary_system - unitary_system @ truncated
+                            if not jnp.any(d):
+                                new_unitary_system = truncated - unitary_system + truncated_inv
+                                self.seen_matrices[hash_array(op)] = {
+                                    'logm': truncated,
+                                    'logm_inv': truncated_inv,
+                                    'orig': op,
+                                    'added_to': [unitary_system],
+                                    'method': ['sum']
+                                }
+                            else:
+                                new_unitary_system = op @ unitary_system @ jnp.transpose(
+                                    op)  # relies on approximation e^L = I + L
+                                self.seen_matrices[hash_array(op)] = {
+                                    'logm': truncated,
+                                    'logm_inv': truncated_inv,
+                                    'orig': op,
+                                    'added_to': [unitary_system],
+                                    'method': ['mul']
+                                }
                         else:
                             lgm = sp.linalg.logm(op)
                             lgm_inv = sp.linalg.logm(jnp.transpose(op))
-                            new_unitary_system = lgm - unitary_system + lgm_inv
-                            self.seen_matrices[hash_array(op)] = {
-                                'logm': lgm,
-                                'logm_inv': lgm_inv,
-                                'orig': op,
-                                'added_to': [unitary_system]
-                            }
+                            d = lgm @ unitary_system - unitary_system @ lgm_inv
+                            if not jnp.any(d):
+                                new_unitary_system = lgm - unitary_system + lgm_inv
+                                self.seen_matrices[hash_array(op)] = {
+                                    'logm': lgm,
+                                    'logm_inv': lgm_inv,
+                                    'orig': op,
+                                    'added_to': [unitary_system],
+                                    'method': ['sum']
+                                }
+                            else:
+                                new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                                self.seen_matrices[hash_array(op)] = {
+                                    'logm': lgm,
+                                    'logm_inv': lgm_inv,
+                                    'orig': op,
+                                    'added_to': [unitary_system],
+                                    'method': ['mul']
+                                }
                     new_list.append(new_unitary_system)
             self.unitary_systems = new_list
             if sum:
@@ -481,7 +544,7 @@ def get_non_unitary_matrix_repr(
 
 if __name__ == "__main__":
     num_qubits = 2
-    num_layers = 2
+    num_layers = 3
 
     # get error probs
     cnot_probs = get_random_probs(16)
@@ -509,17 +572,17 @@ if __name__ == "__main__":
     # super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
     # choi = super_operator_to_choi(super_operator)
 
-    # print("Evolving density matrix")
-    #
-    # # simulate evolution using density matrix approach
-    # density_matrix = get_non_unitary_matrix_repr(
-    #     num_qubits,
-    #     num_layers,
-    #     cnot_probs,
-    #     reset_probs,
-    #     measurement_probs,
-    #     type="density_matrix"
-    # )
+    print("Evolving density matrix")
+
+    # simulate evolution using density matrix approach
+    density_matrix = get_non_unitary_matrix_repr(
+        num_qubits,
+        num_layers,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        type="density_matrix"
+    )
 
     print("Evolving graph Laplacian")
 
@@ -535,15 +598,15 @@ if __name__ == "__main__":
 
     # check when we can do our trick
 
-    count = 0
-    commuting = 0
-    for k, v in repr.seen_matrices.items():
-        for target in v['added_to']:
-            diff = v['logm'] @ target - target @ v['logm']
-            count += 1
-            if not jnp.any(diff):
-                commuting += 1
-    print(f"speedup valid for {commuting} of {count} ops.")
+    # count = 0
+    # commuting = 0
+    # for k, v in repr.seen_matrices.items():
+    #     for target in v['added_to']:
+    #         diff = v['logm'] @ target - target @ v['logm']
+    #         count += 1
+    #         if not jnp.any(diff):
+    #             commuting += 1
+    # print(f"speedup valid for {commuting} of {count} ops.")
 
     # direct test of advantage
 
@@ -551,14 +614,17 @@ if __name__ == "__main__":
     @profile
     def re_execute_density_matrix_circuit(density_matrix):
         for k, v in density_matrix.seen_matrices.items():
-            for target in v['applied_to']:
-                res = jnp.matmul(jnp.matmul(v['orig'], target), v['orig'])
+            for i in range(len(v['applied_to'])):
+                res = v['orig'] @ v['applied_to'][i] @ v['orig']
 
     @profile
     def re_execute_laplacian_circuit(laplacian):
         for k, v in laplacian.seen_matrices.items():
-            for target in v['added_to']:
-                res = v['logm'] + -target + v['logm_inv']
+            for i in range(len(v['added_to'])):
+                if v['method'][i] == 'sum':
+                    res = 2 * v['logm'] - v['added_to'][i]
+                else:
+                    res = v['orig'] @ v['added_to'][i] @ v['orig']
 
 
     print("Re-playing density matrix evolution")
