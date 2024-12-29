@@ -114,7 +114,7 @@ class DensityMatrices(NonUnitaryRepr):
         super().__init__(unitary_systems, num_qubits)
         self.seen_matrices = {}
 
-    def apply_unitary_method(self, op, sum=False):
+    def apply_unitary_method(self, op, sum=True):
         """
         Applies a unitary operator to the representation of the non-unitary circuit.
         :param op: The unitary operator to apply.
@@ -136,7 +136,7 @@ class DensityMatrices(NonUnitaryRepr):
         if sum:
             self.sum()
 
-    def apply_non_unitary_method(self, ops, sum=False):
+    def apply_non_unitary_method(self, ops, sum=True):
         """
         Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
         Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
@@ -179,7 +179,7 @@ class Tape(NonUnitaryRepr):
                                           [0 for k in range(i + 1, 2 ** num_qubits)]
                                           for i in range(2 ** num_qubits)])]
 
-    def apply_unitary_method(self, op, sum=False):
+    def apply_unitary_method(self, op, sum=True):
         """
         Applies a unitary operator.
         :param op: The unitary operator to apply.
@@ -194,7 +194,7 @@ class Tape(NonUnitaryRepr):
         if sum:
             self.sum()
 
-    def apply_non_unitary_method(self, ops, sum=False):
+    def apply_non_unitary_method(self, ops, sum=True):
         """
         Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
         Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
@@ -307,7 +307,7 @@ class LaplacianMatrices(NonUnitaryRepr):
 
         return repr
 
-    def apply_unitary_method(self, op, sum=False, truncate=None):
+    def apply_unitary_method(self, op, sum=True, truncate=None):
         """
         Applies a unitary operator to the representation of the non-unitary circuit.
         :param op: The unitary operator to apply.
@@ -382,7 +382,7 @@ class LaplacianMatrices(NonUnitaryRepr):
         if sum:
             self.sum()
 
-    def apply_non_unitary_method(self, ops, sum=False, truncate=None):
+    def apply_non_unitary_method(self, ops, sum=True, truncate=None):
             """
             Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
             Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
@@ -543,25 +543,25 @@ def get_non_unitary_matrix_repr(
 
 
 if __name__ == "__main__":
-    num_qubits = 2
-    num_layers = 3
+    num_qubits = 3
+    num_layers = 4
 
     # get error probs
     cnot_probs = get_random_probs(16)
     reset_probs = get_random_probs(4)
     measurement_probs = get_random_probs(4)
 
-    # print("Building Choi matrix")
-    #
-    # # get Choi matrix
-    # repr = get_non_unitary_matrix_repr(
-    #     num_qubits,
-    #     num_layers,
-    #     cnot_probs,
-    #     reset_probs,
-    #     measurement_probs,
-    #     type="tape"
-    # )
+    print("Building Choi matrix")
+
+    # get Choi matrix
+    repr = get_non_unitary_matrix_repr(
+        num_qubits,
+        num_layers,
+        cnot_probs,
+        reset_probs,
+        measurement_probs,
+        type="tape"
+    )
 
 
     # note these Qiksit calls cannot be traced and are not autogradable,
@@ -569,8 +569,8 @@ if __name__ == "__main__":
     # kraus = Kraus(repr.unitary_systems)
     # choi = Choi(kraus)
 
-    # super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
-    # choi = super_operator_to_choi(super_operator)
+    super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
+    choi = super_operator_to_choi(super_operator)
 
     print("Evolving density matrix")
 
@@ -598,15 +598,15 @@ if __name__ == "__main__":
 
     # check when we can do our trick
 
-    # count = 0
-    # commuting = 0
-    # for k, v in repr.seen_matrices.items():
-    #     for target in v['added_to']:
-    #         diff = v['logm'] @ target - target @ v['logm']
-    #         count += 1
-    #         if not jnp.any(diff):
-    #             commuting += 1
-    # print(f"speedup valid for {commuting} of {count} ops.")
+    count = 0
+    commuting = 0
+    for k, v in repr.seen_matrices.items():
+        for target in v['added_to']:
+            diff = v['logm'] @ target - target @ v['logm']
+            count += 1
+            if not jnp.any(diff):
+                commuting += 1
+    print(f"speedup valid for {commuting} of {count} ops.")
 
     # direct test of advantage
 
@@ -650,4 +650,3 @@ if __name__ == "__main__":
     for k, v in repr.seen_matrices.items():
         logm = v['logm']
         apply_logm(logm, target)
-
