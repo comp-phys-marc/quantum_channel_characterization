@@ -326,7 +326,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                                           unitary_system + self.seen_matrices[hash]['logm_inv'])
                     self.seen_matrices[hash_array(op)]['method'].append('sum')
                 else:
-                    new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                    new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on e^{BAB^{-1}} = B e^A B^{-1}
                     self.seen_matrices[hash_array(op)]['method'].append('mul')
                 self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
             else:
@@ -347,7 +347,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                             'method': ['sum']
                         }
                     else:
-                        new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                        new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on e^{BAB^{-1}} = B e^A B^{-1}
                         self.seen_matrices[hash_array(op)] = {
                             'logm': truncated,
                             'logm_inv': truncated_inv,
@@ -369,7 +369,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                             'method': ['sum']
                         }
                     else:
-                        new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                        new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on e^{BAB^{-1}} = B e^A B^{-1}
                         self.seen_matrices[hash_array(op)] = {
                             'logm': lgm,
                             'logm_inv': lgm_inv,
@@ -404,7 +404,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                                                   unitary_system + self.seen_matrices[hash]['logm_inv'])
                             self.seen_matrices[hash_array(op)]['method'].append('sum')
                         else:
-                            new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                            new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on e^{BAB^{-1}} = B e^A B^{-1}
                             self.seen_matrices[hash_array(op)]['method'].append('mul')
                         self.seen_matrices[hash_array(op)]['added_to'].append(unitary_system)
                     else:
@@ -425,7 +425,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                                 }
                             else:
                                 new_unitary_system = op @ unitary_system @ jnp.transpose(
-                                    op)  # relies on approximation e^L = I + L
+                                    op)  # relies on e^{BAB^{-1}} = B e^A B^{-1}
                                 self.seen_matrices[hash_array(op)] = {
                                     'logm': truncated,
                                     'logm_inv': truncated_inv,
@@ -447,7 +447,7 @@ class LaplacianMatrices(NonUnitaryRepr):
                                     'method': ['sum']
                                 }
                             else:
-                                new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on approximation e^L = I + L
+                                new_unitary_system = op @ unitary_system @ jnp.transpose(op)  # relies on e^{BAB^{-1}} = B e^A B^{-1}
                                 self.seen_matrices[hash_array(op)] = {
                                     'logm': lgm,
                                     'logm_inv': lgm_inv,
@@ -501,21 +501,21 @@ def get_non_unitary_matrix_repr(
 
     def unitary_evolution_method(op, repr):
         if type == "laplacian":
-            repr.apply_unitary_method(op, truncate=1)
+            repr.apply_unitary_method(op, truncate=4)
         else:
             repr.apply_unitary_method(op)
         return repr
 
     def single_error_method(error_probs, targets, num_wires, repr):
         if type == "laplacian":
-            repr.single_error_application(error_probs, targets, num_wires, truncate=1)
+            repr.single_error_application(error_probs, targets, num_wires, truncate=4)
         else:
             repr.single_error_application(error_probs, targets, num_wires)
         return repr
 
     def two_qubit_error_method(error_probs, targets, num_wires, repr):
         if type == "laplacian":
-            repr.two_error_applications(error_probs, targets, num_wires, truncate=1)
+            repr.two_error_applications(error_probs, targets, num_wires, truncate=4)
         else:
             repr.two_error_applications(error_probs, targets, num_wires)
         return repr
