@@ -8,7 +8,8 @@ from unitary_circuit import get_circuit_matrix_repr, correct_gate_dimensionality
 from pauli_utils import index_to_pauli_operator, index_to_string, LOOKUP
 from evaluation_utils import profile
 from qiskit.quantum_info import Kraus, Choi
-
+import jax
+jax.config.update("jax_enable_x64", True)
 
 class NonUnitaryRepr:
     """
@@ -543,7 +544,7 @@ def get_non_unitary_matrix_repr(
 
 
 if __name__ == "__main__":
-    num_qubits = 3
+    num_qubits = 2
     num_layers = 4
 
     # get error probs
@@ -572,81 +573,90 @@ if __name__ == "__main__":
     super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
     choi = super_operator_to_choi(super_operator)
 
-    print("Evolving density matrix")
-
-    # simulate evolution using density matrix approach
-    density_matrix = get_non_unitary_matrix_repr(
-        num_qubits,
-        num_layers,
-        cnot_probs,
-        reset_probs,
-        measurement_probs,
-        type="density_matrix"
-    )
-
-    print("Evolving graph Laplacian")
-
-    # simulate evolution using graph Laplacian approach
-    repr = get_non_unitary_matrix_repr(
-        num_qubits,
-        num_layers,
-        cnot_probs,
-        reset_probs,
-        measurement_probs,
-        type="laplacian"
-    )
-
-    # check when we can do our trick
-
-    count = 0
-    commuting = 0
-    for k, v in repr.seen_matrices.items():
-        for target in v['added_to']:
-            diff = v['logm'] @ target - target @ v['logm']
-            count += 1
-            if not jnp.any(diff):
-                commuting += 1
-    print(f"speedup valid for {commuting} of {count} ops.")
-
-    # direct test of advantage
-
-    # comparison of entire circuit execution ab-initio
-    @profile
-    def re_execute_density_matrix_circuit(density_matrix):
-        for k, v in density_matrix.seen_matrices.items():
-            for i in range(len(v['applied_to'])):
-                res = v['orig'] @ v['applied_to'][i] @ v['orig']
-
-    @profile
-    def re_execute_laplacian_circuit(laplacian):
-        for k, v in laplacian.seen_matrices.items():
-            for i in range(len(v['added_to'])):
-                if v['method'][i][0] == 's':
-                    res = 2 * v['logm'] - v['added_to'][i]
-                else:
-                    res = v['orig'] @ v['added_to'][i] @ v['orig']
+    from circuit_get_choi import choi_calc_method
+    other_choi = choi_calc_method(reset_probs, cnot_probs, measurement_probs, num_qubits, num_layers)
+    print(choi)
+    print("\n\n")
+    print(other_choi)
 
 
-    print("Re-playing density matrix evolution")
-    re_execute_density_matrix_circuit(density_matrix)
-    print("Re-playing Laplacian evolution")
-    re_execute_laplacian_circuit(repr)
-
-    # get data on each gate
-    @profile
-    def apply_orig(orig, target):
-        orig @ target @ orig
-
-    @profile
-    def apply_logm(logm, target):
-        logm - target + logm
-
-    target = jnp.eye(2 ** repr.num_qubits)
-    for k, v in repr.seen_matrices.items():
-        orig = v['orig']
-        apply_orig(orig, target)
-
-    target = jnp.eye(2 ** repr.num_qubits)
-    for k, v in repr.seen_matrices.items():
-        logm = v['logm']
-        apply_logm(logm, target)
+    #
+    #
+    # print("Evolving density matrix")
+    #
+    # # simulate evolution using density matrix approach
+    # density_matrix = get_non_unitary_matrix_repr(
+    #     num_qubits,
+    #     num_layers,
+    #     cnot_probs,
+    #     reset_probs,
+    #     measurement_probs,
+    #     type="density_matrix"
+    # )
+    #
+    # print("Evolving graph Laplacian")
+    #
+    # # simulate evolution using graph Laplacian approach
+    # repr = get_non_unitary_matrix_repr(
+    #     num_qubits,
+    #     num_layers,
+    #     cnot_probs,
+    #     reset_probs,
+    #     measurement_probs,
+    #     type="laplacian"
+    # )
+    #
+    # # check when we can do our trick
+    #
+    # count = 0
+    # commuting = 0
+    # for k, v in repr.seen_matrices.items():
+    #     for target in v['added_to']:
+    #         diff = v['logm'] @ target - target @ v['logm']
+    #         count += 1
+    #         if not jnp.any(diff):
+    #             commuting += 1
+    # print(f"speedup valid for {commuting} of {count} ops.")
+    #
+    # # direct test of advantage
+    #
+    # # comparison of entire circuit execution ab-initio
+    # @profile
+    # def re_execute_density_matrix_circuit(density_matrix):
+    #     for k, v in density_matrix.seen_matrices.items():
+    #         for i in range(len(v['applied_to'])):
+    #             res = v['orig'] @ v['applied_to'][i] @ v['orig']
+    #
+    # @profile
+    # def re_execute_laplacian_circuit(laplacian):
+    #     for k, v in laplacian.seen_matrices.items():
+    #         for i in range(len(v['added_to'])):
+    #             if v['method'][i][0] == 's':
+    #                 res = 2 * v['logm'] - v['added_to'][i]
+    #             else:
+    #                 res = v['orig'] @ v['added_to'][i] @ v['orig']
+    #
+    #
+    # print("Re-playing density matrix evolution")
+    # re_execute_density_matrix_circuit(density_matrix)
+    # print("Re-playing Laplacian evolution")
+    # re_execute_laplacian_circuit(repr)
+    #
+    # # get data on each gate
+    # @profile
+    # def apply_orig(orig, target):
+    #     orig @ target @ orig
+    #
+    # @profile
+    # def apply_logm(logm, target):
+    #     logm - target + logm
+    #
+    # target = jnp.eye(2 ** repr.num_qubits)
+    # for k, v in repr.seen_matrices.items():
+    #     orig = v['orig']
+    #     apply_orig(orig, target)
+    #
+    # target = jnp.eye(2 ** repr.num_qubits)
+    # for k, v in repr.seen_matrices.items():
+    #     logm = v['logm']
+    #     apply_logm(logm, target)
