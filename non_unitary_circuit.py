@@ -192,7 +192,7 @@ class Tape(NonUnitaryRepr):
             new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:
-            self.sum()
+            raise Exception("Cannot sum after each step with Tape.")
 
     def apply_non_unitary_method(self, ops, sum=False):
         """
@@ -210,7 +210,7 @@ class Tape(NonUnitaryRepr):
                 new_list.append(new_unitary_system)
         self.unitary_systems = new_list
         if sum:
-            self.sum()
+            raise Exception("Cannot sum after each step with Tape.")
 
 
 def truncated_logm(truncate, diff):
@@ -543,7 +543,7 @@ def get_non_unitary_matrix_repr(
 
 
 if __name__ == "__main__":
-    num_qubits = 3
+    num_qubits = 2
     num_layers = 4
 
     # get error probs
