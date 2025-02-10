@@ -179,7 +179,7 @@ class Tape(NonUnitaryRepr):
                                           [0 for k in range(i + 1, 2 ** num_qubits)]
                                           for i in range(2 ** num_qubits)])]
 
-    def apply_unitary_method(self, op, sum=True):
+    def apply_unitary_method(self, op, sum=False):
         """
         Applies a unitary operator.
         :param op: The unitary operator to apply.
@@ -194,7 +194,7 @@ class Tape(NonUnitaryRepr):
         if sum:
             self.sum()
 
-    def apply_non_unitary_method(self, ops, sum=True):
+    def apply_non_unitary_method(self, ops, sum=False):
         """
         Applies non-unitary Kraus operators to the representation of the non-unitary circuit.
         Weighted operators such as those in a Pauli error channel are assumed to have absorbed their weights.
