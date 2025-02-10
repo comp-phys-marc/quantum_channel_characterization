@@ -567,17 +567,17 @@ if __name__ == "__main__":
 
     # note these Qiksit calls cannot be traced and are not autogradable,
     # however they are useful for comparison purposes
-    # kraus = Kraus(repr.unitary_systems)
-    # choi = Choi(kraus)
+    kraus = Kraus(repr.unitary_systems)
+    choi = jnp.array(Choi(kraus).data)
 
     super_operator = kraus_channel_as_super_operator(repr.unitary_systems, num_qubits)
-    choi = super_operator_to_choi(super_operator)
+    choi_dif_calc_method = super_operator_to_choi(super_operator)
 
     from circuit_get_choi import choi_calc_method
     other_choi = choi_calc_method(reset_probs, cnot_probs, measurement_probs, num_qubits, num_layers)
-    print(choi)
-    print("\n\n")
-    print(other_choi)
+    print(jnp.allclose(other_choi, choi_dif_calc_method, rtol=1e-3))
+    # print("\n\n")
+    # print(other_choi)
 
 
     #
